@@ -16,8 +16,9 @@ class pdb_reader final : public reader_base<realT>
     using snapshot_type   = typename base_type::snapshot_type;
     using trajectory_type = typename base_type::trajectory_type;
 
-    pdb_reader(const std::string& fname)
-        : base_type(fname), model_found(false), ln(0), pdb(fname)
+    pdb_reader(const std::string& fname, const bool read_hetatms)
+        : base_type(fname), model_found(false), read_HETATMs(read_hetatms),
+          ln(0), pdb(fname)
     {
         if(!pdb.good()) {throw std::runtime_error("file open error: " + fname);}
 
@@ -111,7 +112,8 @@ class pdb_reader final : public reader_base<realT>
             {
                 break;
             }
-            if(header != "ATOM  " && header != "HETATM")
+            if(!(header == "ATOM  " ||
+                 this->read_HETATMs && header != "HETATM"))
             {
                 continue;
             }
@@ -128,7 +130,8 @@ class pdb_reader final : public reader_base<realT>
     sphere<realT> read_atom(const std::string& line)
     {
         const auto header = line.substr(0, 6);
-        if(header != "ATOM  " && header != "HETATM")
+        if(!(header == "ATOM  " ||
+             this->read_HETATMs && header != "HETATM"))
         {
             throw std::invalid_argument("internal error: invalid line");
         }
@@ -240,6 +243,7 @@ class pdb_reader final : public reader_base<realT>
 
 
     bool          model_found;
+    bool          read_HETATMs;
     std::size_t   ln; // line number
     std::ifstream pdb;
 };
