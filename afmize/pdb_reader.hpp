@@ -2,24 +2,22 @@
 #define AFMIZE_READ_PDB_HPP
 #include <afmize/parameter.hpp>
 #include <afmize/read_number.hpp>
-#include <afmize/shapes.hpp>
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <vector>
-#include <cstdlib>
+#include <afmize/reader_base.hpp>
 
 namespace afmize
 {
 
 template<typename realT>
-class pdb_reader
+class pdb_reader final : public reader_base<realT>
 {
   public:
 
-    using snapshot = std::vector<sphere<realT>>;
+    using base_type       = reader_base<realT>;
+    using snapshot_type   = typename base_type::snapshot_type;
+    using trajectory_type = typename base_type::trajectory_type;
 
-    pdb_reader(const std::string& fname) : model_found(false), ln(0), pdb(fname)
+    pdb_reader(const std::string& fname)
+        : base_type(fname), model_found(false), ln(0), pdb(fname)
     {
         if(!pdb.good()) {throw std::runtime_error("file open error: " + fname);}
 
@@ -43,21 +41,21 @@ class pdb_reader
         }
         this->pdb.seekg(0, std::ios_base::beg);
     }
-    ~pdb_reader() = default;
+    ~pdb_reader() override = default;
 
-    bool is_eof() {pdb.peek(); return pdb.eof();}
+    bool is_eof() override {pdb.peek(); return pdb.eof();}
 
-    std::vector<snapshot> read_all()
+    trajectory_type read_trajectory() override
     {
         this->pdb.seekg(0, std::ios_base::beg);
         this->ln = 0;
 
-        std::vector<snapshot> models;
+        std::vector<snapshot_type> models;
         while(!pdb.eof())
         {
             try
             {
-                models.push_back(this->read_model());
+                models.push_back(this->read_snapshot());
                 pdb.peek();
             }
             catch(std::runtime_error re)
@@ -72,7 +70,7 @@ class pdb_reader
         return models;
     }
 
-    snapshot read_model()
+    snapshot_type read_snapshot() override
     {
         if(model_found)
         {
@@ -85,7 +83,7 @@ class pdb_reader
                     return l;
                 }();
 
-                const auto header = get_substr(line, 0, 5);
+                const auto header = this->get_substr(line, ln, 0, 5);
                 if(header == "MODEL")
                 {
                     pdb.peek();
@@ -98,7 +96,7 @@ class pdb_reader
             }
         }
 
-        snapshot snap;
+        snapshot_type snap;
         while(!pdb.eof())
         {
             const auto line = [this] {
@@ -108,7 +106,7 @@ class pdb_reader
                 return l;
             }();
 
-            const auto header = get_substr(line, 0, 6);
+            const auto header = this->get_substr(line, ln, 0, 6);
             if(model_found && (header == "ENDMDL" || header == "MODEL "))
             {
                 break;
@@ -145,18 +143,18 @@ class pdb_reader
             if(!std::isupper(line.at(12)))
             {
                 particle.radius =
-                    parameter<realT>::radius.at(this->get_substr(line, 13, 1));
+                    parameter<realT>::radius.at(this->get_substr(line, ln, 13, 1));
             }
             else
             {
                 particle.radius =
-                    parameter<realT>::radius.at(this->get_substr(line, 12, 2));
+                    parameter<realT>::radius.at(this->get_substr(line, ln, 12, 2));
             }
         }
         catch(std::out_of_range)
         {
             std::cerr << "unknown atom name found at line " << ln << ".\n";
-            highlight_columns(std::cerr, line, 12, 4);
+            this->highlight_columns(std::cerr, line, 12, 4);
             std::cerr << "according to wwPDB 3.3,\n> one-letter atom name "
                          "such as C starts at column 14,\n> while two-letter "
                          "atom name such as FE starts at column 13.\n";
@@ -178,112 +176,68 @@ class pdb_reader
         try
         {
             particle.center[0] =
-                read_number<realT>(this->get_substr(line, 30, 8));
+                read_number<realT>(this->get_substr(line, ln, 30, 8));
         }
         catch(std::invalid_argument)
         {
             std::cerr << "invalid format at line " << ln << ".\n";
-            highlight_columns(std::cerr, line, 30, 8);
-            std::cerr << mes_float_format_err;
+            this->highlight_columns(std::cerr, line, 30, 8);
+            std::cerr << base_type::mes_float_format_err;
             std::exit(EXIT_FAILURE);
         }
         catch(std::out_of_range)
         {
             std::cerr << "invalid value at line" << ln << ".\n";
-            highlight_columns(std::cerr, line, 30, 8);
-            std::cerr << mes_float_range_err;
+            this->highlight_columns(std::cerr, line, 30, 8);
+            std::cerr << base_type::mes_float_range_err;
             std::exit(EXIT_FAILURE);
         }
 
         try
         {
             particle.center[1] =
-                read_number<realT>(this->get_substr(line, 38, 8));
+                read_number<realT>(this->get_substr(line, ln, 38, 8));
         }
         catch(std::invalid_argument)
         {
             std::cerr << "invalid format at line " << ln << ".\n";
-            highlight_columns(std::cerr, line, 38, 8);
-            std::cerr << mes_float_format_err;
+            this->highlight_columns(std::cerr, line, 38, 8);
+            std::cerr << base_type::mes_float_format_err;
             std::exit(EXIT_FAILURE);
         }
         catch(std::out_of_range)
         {
             std::cerr << "invalid value at line" << ln << ".\n";
-            highlight_columns(std::cerr, line, 38, 8);
-            std::cerr << mes_float_range_err;
+            this->highlight_columns(std::cerr, line, 38, 8);
+            std::cerr << base_type::mes_float_range_err;
             std::exit(EXIT_FAILURE);
         }
 
         try
         {
             particle.center[2] =
-                read_number<realT>(this->get_substr(line, 46, 8));
+                read_number<realT>(this->get_substr(line, ln, 46, 8));
         }
         catch(std::invalid_argument)
         {
             std::cerr << "invalid format at line " << ln << ".\n";
-            highlight_columns(std::cerr, line, 46, 8);
-            std::cerr << mes_float_format_err;
+            this->highlight_columns(std::cerr, line, 46, 8);
+            std::cerr << base_type::mes_float_format_err;
             std::exit(EXIT_FAILURE);
         }
         catch(std::out_of_range)
         {
             std::cerr << "invalid value at line" << ln << ".\n";
-            highlight_columns(std::cerr, line, 46, 8);
-            std::cerr << mes_float_range_err;
+            this->highlight_columns(std::cerr, line, 46, 8);
+            std::cerr << base_type::mes_float_range_err;
             std::exit(EXIT_FAILURE);
         }
 
         return particle;
     }
 
-    void highlight_columns(std::ostream& os, const std::string& line,
-                            const std::size_t padding, const std::size_t width)
-    {
-        os << "> " << line << '\n';
-        os << "  ";
-        for(std::size_t i=0; i<padding; ++i) {os << ' ';}
-        for(std::size_t i=0; i<width;   ++i) {os << '^';}
-        os << '\n';
-    }
-
-    std::string get_substr(const std::string& line,
-        std::string::size_type b, std::string::size_type w) noexcept
-    {
-        try
-        {
-            return line.substr(b, w);
-        }
-        catch(std::out_of_range)
-        {
-            std::cerr << "incomplete ATOM line found at line " << ln << ".\n";
-            std::cerr << '\t' << line << '\n';
-            std::cerr << '\t' << std::string('^', line.size()) << '\n';
-            std::cerr << "check your pdb file.\n";
-            std::exit(EXIT_FAILURE);
-        }
-        catch(std::bad_alloc)
-        {
-            std::cerr << "memory error detected.\nyou need to buy more RAM.\n";
-            std::exit(EXIT_FAILURE);
-        }
-        catch(...)
-        {
-            std::cerr << "unexpected error detected while reading pdb file.\n";
-            std::exit(EXIT_FAILURE);
-        }
-    }
-
   private:
 
-    static constexpr auto mes_float_format_err =
-        "couldn't convert to floating-point value.\n"
-        "If it looks ok, locale settings may have a problem. "
-        "check your locale.\n";
-
-    static constexpr auto mes_float_range_err =
-        "the value exceeds the range of floating-point.\n";
 
     bool          model_found;
     std::size_t   ln; // line number
