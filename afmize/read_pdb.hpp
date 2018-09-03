@@ -164,7 +164,8 @@ class pdb_reader
                          "file-format-content/format33/sect9.html#ATOM\n";
             if(line.at(12) == 'H')
             {
-                std::cerr << "It looks like a hydrogen. continue reading...";
+                std::cerr << "WARNING: It looks like a hydrogen. "
+                          << "continue reading...";
                 particle.radius = parameter<realT>::radius.at("H");
                 std::cerr << "\n\n";
             }
