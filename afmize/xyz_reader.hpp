@@ -3,6 +3,7 @@
 #include <afmize/parameter.hpp>
 #include <afmize/read_number.hpp>
 #include <afmize/reader_base.hpp>
+#include <sstream>
 
 namespace afmize
 {
@@ -16,7 +17,7 @@ class xyz_reader final : public reader_base<realT>
     using snapshot_type   = typename base_type::snapshot_type;
     using trajectory_type = typename base_type::trajectory_type;
 
-    xyz_reader(const std::string& fname, const bool read_hetatms)
+    xyz_reader(const std::string& fname)
         : base_type(fname), ln(0), xyz(fname)
     {
         if(!xyz.good()) {throw std::runtime_error("file open error: " + fname);}
@@ -47,7 +48,7 @@ class xyz_reader final : public reader_base<realT>
                 break;
             }
         }
-        return models;
+        return traj;
     }
 
     snapshot_type read_snapshot() override
@@ -72,14 +73,14 @@ class xyz_reader final : public reader_base<realT>
         {
             std::cerr << "invalid format in number of element at line "
                       << ln << ".\n";
-            std::cerr << "> " << line << '\n';
+            std::cerr << "> " << n_elem << '\n';
             std::exit(EXIT_FAILURE);
         }
         catch(std::out_of_range)
         {
             std::cerr << "too many atoms in one snapshot at line"
                       << ln << ".\n";
-            std::cerr << "> " << line << '\n';
+            std::cerr << "> " << n_elem << '\n';
             std::exit(EXIT_FAILURE);
         }
 
@@ -110,7 +111,7 @@ class xyz_reader final : public reader_base<realT>
     {
         std::istringstream iss(line);
         std::string name, x, y, z;
-        line >> name >> x >> y >> z;
+        iss >> name >> x >> y >> z;
 
         sphere<realT> particle;
 
