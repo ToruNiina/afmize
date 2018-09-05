@@ -48,6 +48,8 @@ class pdb_reader final : public reader_base<realT>
 
     trajectory_type read_trajectory() override
     {
+        using namespace std::literals::string_literals;
+
         this->pdb.seekg(0, std::ios_base::beg);
         this->ln = 0;
 
@@ -61,7 +63,7 @@ class pdb_reader final : public reader_base<realT>
             }
             catch(std::runtime_error re)
             {
-                if(re.what() != "no more MODEL in PDB file")
+                if(re.what() != "no more MODEL in PDB file"s)
                 {
                     throw re;
                 }

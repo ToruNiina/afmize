@@ -28,6 +28,8 @@ class xyz_reader final : public reader_base<realT>
 
     trajectory_type read_trajectory() override
     {
+        using namespace std::literals::string_literals;
+
         this->xyz.seekg(0, std::ios_base::beg);
         this->ln = 0;
 
@@ -41,7 +43,7 @@ class xyz_reader final : public reader_base<realT>
             }
             catch(std::runtime_error re)
             {
-                if(re.what() != "no more snapshot in xyz file")
+                if(re.what() != "no more snapshot in xyz file"s)
                 {
                     throw re;
                 }
