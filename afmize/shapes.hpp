@@ -31,7 +31,7 @@ struct default_probe
 };
 
 template<typename Real>
-struct AABB
+struct aabb
 {
     mave::vector<Real, 3> upper;
     mave::vector<Real, 3> lower;
@@ -39,18 +39,18 @@ struct AABB
 
 
 template<typename Real>
-AABB<Real> make_aabb(const sphere<Real>& sph) noexcept
+aabb<Real> make_aabb(const sphere<Real>& sph) noexcept
 {
-    return AABB<Real>{
+    return aabb<Real>{
         sph.center + mave::vector<Real, 3>{sph.radius, sph.radius, sph.radius},
         sph.center - mave::vector<Real, 3>{sph.radius, sph.radius, sph.radius}
     };
 }
 
 template<typename Real>
-AABB<Real> merge_aabb(const AABB<Real>& lhs, const AABB<Real>& rhs) noexcept
+aabb<Real> merge_aabb(const aabb<Real>& lhs, const aabb<Real>& rhs) noexcept
 {
-    return AABB<Real>{
+    return aabb<Real>{
         mave::max(lhs.upper, rhs.upper), mave::min(lhs.lower, rhs.lower)
     };
 }
