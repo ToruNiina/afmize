@@ -3,6 +3,7 @@ enable_testing()
 project(afmize)
 
 execute_process(COMMAND git submodule update --init --recursive)
+include_directories(${PROJECT_SOURCE_DIR}/extlib/toml)
 include_directories(${PROJECT_SOURCE_DIR})
 
 if(EXISTS "${PROJECT_SOURCE_DIR}/extlib/boost_1_67_0/boost/version.hpp")

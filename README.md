@@ -24,7 +24,7 @@ $ cat example.toml
 # toml format v0.5.0
 # angle is degree, length is nm. pdb and xyz are read as angstrom.
 file.input   = "example.pdb"
-file.output  = "output.ppm"
+file.output  = "output"
 probe.size   = {radius = 1.0, angle = 10.0}
 resolution.x = 0.5
 resolution.y = 0.5
