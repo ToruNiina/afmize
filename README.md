@@ -6,31 +6,32 @@ making pseudo AFM images from structure file.
 ## Usage
 
 ```sh
-$ afmize example.pdb # generates image file
+$ afmize example.toml # generates image file
 ```
 
 ### Configurations
 
-It uses [toml format](https://github.com/toml-lang/toml/blob/master/versions/en/toml-v0.5.0.md) for config file.
+It uses [toml format](https://github.com/toml-lang/toml) as a config file format.
+For more information about it, see [the spec of toml-v0.5.0](https://github.com/toml-lang/toml/blob/master/versions/en/toml-v0.5.0.md).
 
 You can change...
-- shape and size of probe
+- probe size
 - radii of atoms
 - x, y, and z resolutions
 
 ```sh
 $ cat example.toml
 # toml format v0.5.0
+# angle is degree, length is nm. pdb and xyz are read as angstrom.
 file.input   = "example.pdb"
 file.output  = "output.ppm"
-unit.length  = "nm"
-probe.shape  = {type = "sphere", radius = 1.0}
+probe.size   = {radius = 1.0, angle = 10.0}
 resolution.x = 0.5
 resolution.y = 0.5
 resolution.z = 0.064
 range.x      = [0.0, 100.0]
 range.y      = [0.0, 100.0]
-noise        = "none"
+radii.H      = 0.1 # you can set radii of all the elements found in pdb file.
 
 $ afmize example.toml
 ```
