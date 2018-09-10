@@ -1,6 +1,7 @@
 #ifndef AFMIZE_SYSTEM_HPP
 #define AFMIZE_SYSTEM_HPP
 #include <afmize/shapes.hpp>
+#include <vector>
 
 namespace afmize
 {
@@ -11,15 +12,16 @@ struct system
     system(std::vector<sphere<Real>> mol)
         : particles(std::move(mol))
     {
-        this->shape = make_aabb(particles.front());
+        this->bounding_box = make_aabb(particles.front());
         for(std::size_t i=1; i<particles.size(); ++i)
         {
-            this->shape = merge_aabb(this->shape, particles[i]);
+            this->bounding_box =
+                merge_aabb(this->bounding_box, make_aabb(particles[i]));
         }
     }
     ~system() = default;
 
-    aabb<Real>                shape;
+    aabb<Real>                bounding_box;
     std::vector<sphere<Real>> particles;
 };
 
