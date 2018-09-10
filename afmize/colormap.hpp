@@ -1,6 +1,9 @@
 #ifndef AFMIZE_COLOR_MAP_HPP
 #define AFMIZE_COLOR_MAP_HPP
 #include <extlib/pnm/pnm.hpp>
+#include <cassert>
+#include <cstdint>
+#include <cmath>
 
 namespace afmize
 {
