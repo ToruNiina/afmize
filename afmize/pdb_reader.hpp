@@ -61,12 +61,8 @@ class pdb_reader final : public reader_base<realT>
                 models.push_back(this->read_snapshot());
                 pdb.peek();
             }
-            catch(std::runtime_error re)
+            catch(typename base_type::no_more_model)
             {
-                if(re.what() != "no more MODEL in PDB file"s)
-                {
-                    throw re;
-                }
                 break;
             }
         }
@@ -95,7 +91,7 @@ class pdb_reader final : public reader_base<realT>
             }
             if(pdb.eof())
             {
-                throw std::runtime_error("no more MODEL in PDB file");
+                throw typename base_type::no_more_model{};
             }
         }
 

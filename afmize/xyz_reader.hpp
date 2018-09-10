@@ -41,12 +41,8 @@ class xyz_reader final : public reader_base<realT>
                 traj.push_back(this->read_snapshot());
                 xyz.peek();
             }
-            catch(std::runtime_error re)
+            catch(typename base_type::no_more_model)
             {
-                if(re.what() != "no more snapshot in xyz file"s)
-                {
-                    throw re;
-                }
                 break;
             }
         }
@@ -57,7 +53,7 @@ class xyz_reader final : public reader_base<realT>
     {
         if(this->is_eof())
         {
-            throw std::runtime_error("no more snapshot in xyz file");
+            throw typename base_type::no_more_model{};
         }
 
         const auto n_elem = [this] {

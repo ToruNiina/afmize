@@ -16,6 +16,8 @@ class reader_base
     using snapshot_type   = std::vector<sphere<realT>>;
     using trajectory_type = std::vector<snapshot_type>;
 
+    struct no_more_model{};
+
     reader_base(std::string nm): filename(std::move(nm)){}
     virtual ~reader_base() = default;
 
