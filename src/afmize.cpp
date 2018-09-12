@@ -59,11 +59,11 @@ Real collide_at(const system<Real>& sys, const default_probe<Real>& probe)
         const Real dz_sph = collision_z(sphere<Real>{
                 probe.radius, probe.apex
             }, sph);
-//         const Real dz_frs = collision_z(circular_frustum<Real>{
-//                 probe.angle, probe.radius, probe.apex
-//             }, sph);
-//
-//         height = std::max(height, probe.apex[2] + dz_frs);
+        const Real dz_frs = collision_z(circular_frustum<Real>{
+                probe.angle, probe.radius, probe.apex
+            }, sph);
+
+        height = std::max(height, probe.apex[2] + dz_frs);
         if(!std::isnan(dz_sph))
         {
             height = std::max(height, probe.apex[2] + dz_sph);
