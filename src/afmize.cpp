@@ -9,10 +9,12 @@
 
 namespace afmize
 {
+
 template<typename T>
 decltype(toml::get<T>(std::declval<toml::value>()))
 get(const toml::table& tab, const std::string& key, const std::string loc)
 {
+    // to show the error message
     try{return toml::get<T>(tab.at(key));}
     catch(std::out_of_range)
     {
@@ -78,13 +80,15 @@ void write_json(const stage<Real>& stg, const std::string& out)
     using namespace std::literals::string_literals;
 
     std::ofstream ofs(out + ".json");
-    ofs << "{height:[\n";
+    ofs << "{\"height\":[\n";
     for(std::size_t j=0; j<stg.y_pixel(); ++j)
     {
         for(std::size_t i=0; i<stg.x_pixel(); ++i)
         {
             const auto p = stg.position_at(i, j);
-            ofs << "{x:" << p[0] << ", y:" << p[1] << ", z:" << p[2] << "},\n";
+            ofs << "\t{\"x\":" << p[0] << ", \"y\":" << p[1] << ", \"z\":" << p[2] << "}";
+            if(j == stg.y_pixel()-1 && i == stg.x_pixel()-1) {ofs << "\n";}
+            else {ofs << ",\n";}
         }
     }
     ofs << "]}";
