@@ -33,19 +33,21 @@ Real collision_z(const circular_frustum<Real>& probe,
     if(threshold < dist_xy)
     {
         // collides at the lateral surface of circular frustum
-        return probe.apex[2] - target.center[2] +
-            (dist_xy - probe.radius - target.radius / cos_theta) /
-            std::tan(probe.angle);
+        return target.center[2] -
+            ((dist_xy - probe.radius - target.radius * cos_theta) /
+              std::tan(probe.angle) - target.radius * std::sin(probe.angle))
+            - probe.apex[2];
     }
     else if(probe.radius < dist_xy)
     {
-        // collides at the top of circular frustum
-        return probe.apex[2] - target.center[2] +
-            std::sqrt(square(target.radius) - square(dist_xy - probe.radius));
+        // collides at the edge of circular frustum
+        return target.center[2] + std::sqrt(
+                square(target.radius) - square(dist_xy - probe.radius)) -
+                probe.apex[2];
     }
-    else // trivial case
+    else // trivial case.
     {
-        return probe.apex[2] - target.center[2] - target.radius;
+        return target.center[2] + target.radius - probe.apex[2];
     }
 }
 
