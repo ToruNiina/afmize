@@ -24,6 +24,85 @@ get(const toml::table& tab, const std::string& key, const std::string loc)
     }
 }
 
+inline toml::value
+find(const toml::table& tab, const std::string& key, const std::string loc)
+{
+    // to show the error message
+    try{return tab.at(key);}
+    catch(std::out_of_range)
+    {
+        using namespace std::literals::string_literals;
+        throw std::out_of_range(
+                "key `"s + key + "` is not found in a table "s + loc);
+    }
+}
+
+template<typename T>
+std::enable_if_t<std::is_floating_point<T>::value, T>
+read_as_angstrom(const toml::value& v, const std::string& name)
+{
+    using namespace std::literals::string_literals;
+
+    switch(v.which())
+    {
+        case toml::value::string_tag:
+        {
+            std::string num, unit;
+            {
+                const auto& str = toml::get<std::string>(v);
+                auto iter  = str.begin();
+                auto token = toml::detail::lex_float::invoke(iter, str.end());
+                auto last  = std::remove(token->begin(), token->end(), '_');
+                token->erase(last, token->end());
+                num  = *token;
+                unit = std::string(iter, str.end());
+            }
+            const double val = std::stod(num);
+            if(unit.front() == '_'){unit.erase(unit.begin());}
+
+            if(unit == "pm")
+            {
+                return static_cast<T>(val * 0.01);
+            }
+            if(unit == "angst" || unit == u8"Å" || unit == u8"Å")
+            {
+                // middle is U+212B "angstrom",
+                // right is U+00C5 "latin capical letter A with ring above".
+                return static_cast<T>(val);
+            }
+            else if(unit == "nm")
+            {
+                return static_cast<T>(val * 10.0);
+            }
+            else if(unit == "um" || unit == u8"μm")
+            {
+                return static_cast<T>(val * 10'000.0);
+            }
+            else if(unit == "mm")
+            {
+                return static_cast<T>(val * 10'000'000.0);
+            }
+            else
+            {
+                throw std::runtime_error("unknown length unit `" + unit + "` appeared");
+            }
+        }
+        case toml::value::integer_tag:
+        {
+            return static_cast<T>(toml::get<std::int64_t>(v));
+        }
+        case toml::value::float_tag:
+        {
+            return toml::get<T>(v);
+        }
+        default:
+        {
+            throw std::runtime_error("`"s + name + "` has "s +
+                    "invalid type (none of string, float, or integer.)"s);
+        }
+    }
+}
+
 template<typename Real>
 std::unique_ptr<afmize::reader_base<Real>>
 open_file(const std::string& fname)
@@ -182,14 +261,21 @@ int main(int argc, char** argv)
     // image size information
     const auto& resolution = afmize::get<toml::table>(config, "resolution", "root");
     const auto& range      = afmize::get<toml::table>(config, "range", "root");
-    auto range_x = afmize::get<std::pair<Real, Real>>(range, "x", "[range]");
-    auto range_y = afmize::get<std::pair<Real, Real>>(range, "y", "[range]");
+    auto range_x = afmize::get<std::pair<toml::value, toml::value>>(range, "x", "[range]");
+    auto range_y = afmize::get<std::pair<toml::value, toml::value>>(range, "y", "[range]");
     afmize::stage<Real> stg(
-            afmize::get<Real>(resolution, "x", "[resolution]"),
-            afmize::get<Real>(resolution, "y", "[resolution]"),
-            afmize::get<Real>(resolution, "x", "[resolution]"),
-            std::make_pair(range_x.first, range_x.second),
-            std::make_pair(range_y.first, range_y.second)
+            afmize::read_as_angstrom<Real>(
+                afmize::find(resolution, "x", "[resolution]"), "resolution.x"),
+            afmize::read_as_angstrom<Real>(
+                afmize::find(resolution, "y", "[resolution]"), "resolution.y"),
+            afmize::read_as_angstrom<Real>(
+                afmize::find(resolution, "z", "[resolution]"), "resolution.z"),
+            std::make_pair(
+                afmize::read_as_angstrom<Real>(range_x.first,  "range_x"),
+                afmize::read_as_angstrom<Real>(range_x.second, "range_x")),
+            std::make_pair(
+                afmize::read_as_angstrom<Real>(range_y.first,  "range_y"),
+                afmize::read_as_angstrom<Real>(range_y.second, "range_y"))
         );
 
     // probe size information
@@ -197,7 +283,9 @@ int main(int argc, char** argv)
     const auto& probe_size = afmize::get<toml::table>(probe_tab, "size", "[probe]");
     afmize::default_probe<Real> probe{
             afmize::get<Real>(probe_size, "angle",  "[probe.size]") * deg_to_rad,
-            afmize::get<Real>(probe_size, "radius", "[probe.size]"),
+            afmize::read_as_angstrom<Real>(
+                afmize::find(probe_size, "radius", "[probe.size]"),
+                "probe.size.radius"),
             mave::vector<Real, 3>{0, 0, 0}
         };
 
