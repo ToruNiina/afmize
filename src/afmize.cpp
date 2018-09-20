@@ -127,11 +127,13 @@ void write_ppm(const stage<Real>& stg, const std::string& out)
             color_afmhot<Real, pnm::rgb_pixel>(stg[i], min_elem, max_elem);
     }
 
-    // origin of image is upper left, but the physical origin is lower left.
-    // to workaround this, it simply reverse the image.
-    pnm::image<pnm::rgb_pixel> reversed(stg.x_pixel(), stg.y_pixel());
-    std::copy(ppm.rbegin(), ppm.rend(), reversed.begin());
-
+    // origin of the image is upper left, but the physical origin is lower left.
+    // to make it consistent, it simply reverses the image.
+    pnm::image<pnm::rgb_pixel> reversed(ppm.x_size(), ppm.y_size());
+    for(std::size_t i = 0; i<ppm.y_size(); ++i)
+    {
+        reversed[ppm.y_size() - i - 1] = ppm[i];
+    }
     pnm::write(out + ".ppm"s, reversed, pnm::format::binary);
     return;
 }
