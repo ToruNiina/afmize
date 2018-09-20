@@ -21,7 +21,7 @@ You can change...
 
 The content would be like this.
 
-```toml
+```
 # toml format v0.5.0
 # the default unit is: degree for angle, angstrom for length
 # you can also specify the unit explicitly
