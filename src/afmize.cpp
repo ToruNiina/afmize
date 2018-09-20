@@ -144,7 +144,6 @@ int main(int argc, char** argv)
     using Real = double;
     constexpr Real pi             = Real(3.1415926535897932384626);
     constexpr Real deg_to_rad     = pi / Real(180.0);
-    constexpr Real nm_to_angstrom = 10;
 
     if(argc != 2)
     {
@@ -186,11 +185,11 @@ int main(int argc, char** argv)
     auto range_x = afmize::get<std::pair<Real, Real>>(range, "x", "[range]");
     auto range_y = afmize::get<std::pair<Real, Real>>(range, "y", "[range]");
     afmize::stage<Real> stg(
-            afmize::get<Real>(resolution, "x", "[resolution]") * nm_to_angstrom,
-            afmize::get<Real>(resolution, "y", "[resolution]") * nm_to_angstrom,
-            afmize::get<Real>(resolution, "x", "[resolution]") * nm_to_angstrom,
-            std::make_pair(range_x.first * nm_to_angstrom, range_x.second * nm_to_angstrom),
-            std::make_pair(range_y.first * nm_to_angstrom, range_y.second * nm_to_angstrom)
+            afmize::get<Real>(resolution, "x", "[resolution]"),
+            afmize::get<Real>(resolution, "y", "[resolution]"),
+            afmize::get<Real>(resolution, "x", "[resolution]"),
+            std::make_pair(range_x.first, range_x.second),
+            std::make_pair(range_y.first, range_y.second)
         );
 
     // probe size information
@@ -198,7 +197,7 @@ int main(int argc, char** argv)
     const auto& probe_size = afmize::get<toml::table>(probe_tab, "size", "[probe]");
     afmize::default_probe<Real> probe{
             afmize::get<Real>(probe_size, "angle",  "[probe.size]") * deg_to_rad,
-            afmize::get<Real>(probe_size, "radius", "[probe.size]") * nm_to_angstrom,
+            afmize::get<Real>(probe_size, "radius", "[probe.size]"),
             mave::vector<Real, 3>{0, 0, 0}
         };
 
