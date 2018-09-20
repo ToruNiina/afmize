@@ -89,7 +89,7 @@ class xyz_reader final : public reader_base<realT>
 
         snapshot_type snapshot;
         snapshot.reserve(N);
-        while(this->is_eof() && snapshot.size() < N)
+        while(!this->is_eof() && snapshot.size() < N)
         {
             std::string line;
             std::getline(this->xyz, line);
@@ -145,7 +145,7 @@ class xyz_reader final : public reader_base<realT>
 
         try
         {
-            particle.center[1] = read_number<realT>(x);
+            particle.center[1] = read_number<realT>(y);
         }
         catch(std::invalid_argument)
         {
@@ -164,7 +164,7 @@ class xyz_reader final : public reader_base<realT>
 
         try
         {
-            particle.center[2] = read_number<realT>(x);
+            particle.center[2] = read_number<realT>(z);
         }
         catch(std::invalid_argument)
         {
