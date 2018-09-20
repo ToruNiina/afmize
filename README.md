@@ -12,28 +12,29 @@ $ afmize example.toml # generates image file
 ### Configurations
 
 It uses [toml format](https://github.com/toml-lang/toml) as a config file format.
-For more information about it, see [the spec of toml-v0.5.0](https://github.com/toml-lang/toml/blob/master/versions/en/toml-v0.5.0.md).
+For more information about the format, see [the spec of toml-v0.5.0](https://github.com/toml-lang/toml/blob/master/versions/en/toml-v0.5.0.md).
 
 You can change...
 - probe size
 - radii of atoms
 - x, y, and z resolutions
 
-```sh
-$ cat example.toml
+The content would be like this.
+
+```toml
 # toml format v0.5.0
-# angle is degree, length is nm. pdb and xyz are read as angstrom.
+# the default unit is: degree for angle, angstrom for length
+# you can also specify the unit explicitly
+# pm, angstrom, nm, um, mm are allowed
 file.input   = "example.pdb"
 file.output  = "output"
-probe.size   = {radius = 1.0, angle = 10.0}
-resolution.x = 0.5
-resolution.y = 0.5
-resolution.z = 0.064
-range.x      = [0.0, 100.0]
-range.y      = [0.0, 100.0]
+probe.size   = {radius = "1.0nm", angle = 10.0}
+resolution.x = "1.0nm"
+resolution.y = "1.0nm"
+resolution.z = "0.64Å"
+range.x      = ["0.0nm", "100.0nm"]
+range.y      = ["0.0nm", "100.0nm"]
 radii.H      = 0.1 # you can set radii of all the elements found in pdb file.
-
-$ afmize example.toml
 ```
 
 ### Supported file formats
@@ -54,13 +55,14 @@ Use your favorite package managers (e.g. `apt`) to install them.
 - C++14 compliant compiler
   - gcc 5.1 or later
   - clang 3.4 or later
-  - or others...
+  - or others that fully support C++14 ISO standard.
 
 All other dependencies are managed by CMake script and git submodule.
 
 ### Building
 
 ```sh
+$ git submodule update
 $ mkdir build
 $ cd build
 $ cmake ..
