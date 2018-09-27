@@ -34,6 +34,10 @@ resolution.y = "1.0nm"
 resolution.z = "0.64Å"
 range.x      = ["0.0nm", "100.0nm"]
 range.y      = ["0.0nm", "100.0nm"]
+
+stage.align    = true
+stage.position = "1.0Å" # z coordinate of stage
+
 radii.H      = 0.1 # you can set radii of all the elements found in pdb file.
 ```
 
