@@ -66,18 +66,21 @@ void write_json(const stage<Real>& stg, const std::string& out)
     using namespace std::literals::string_literals;
 
     std::ofstream ofs(out + ".json");
-    ofs << "{\"height\":[\n";
+    ofs << "{\n\t\"resolution\":{\"x\":" << stg.x_resolution()
+        << ", \"y\":" << stg.y_resolution()
+        << ", \"z\":" << stg.z_resolution() << "},\n";
+    ofs << "\t\"height\":[\n";
     for(std::size_t j=0; j<stg.y_pixel(); ++j)
     {
         for(std::size_t i=0; i<stg.x_pixel(); ++i)
         {
             const auto p = stg.position_at(i, j);
-            ofs << "\t{\"x\":" << p[0] << ", \"y\":" << p[1] << ", \"z\":" << p[2] << "}";
+            ofs << "\t\t{\"x\":" << p[0] << ", \"y\":" << p[1] << ", \"z\":" << p[2] << "}";
             if(j == stg.y_pixel()-1 && i == stg.x_pixel()-1) {ofs << "\n";}
             else {ofs << ",\n";}
         }
     }
-    ofs << "]}";
+    ofs << "\t]\n}";
     return;
 }
 
