@@ -201,7 +201,7 @@ int main(int argc, char** argv)
             mave::vector<Real, 3>{0, 0, 0}
         };
 
-    std::cout << "done." << std::endl;
+    std::cout << "done. creating image..." << std::endl;
 
     try
     {
@@ -233,5 +233,6 @@ int main(int argc, char** argv)
     {
         ; // do nothing
     }
+    std::cout << "done." << std::endl;
     return 0;
 }
