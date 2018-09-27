@@ -41,7 +41,8 @@ Real descretize(const Real x, const Real resolution, const Real min_val)
 template<typename Real>
 Real collide_at(const system<Real>& sys, const default_probe<Real>& probe)
 {
-    Real height = sys.bounding_box.lower[2];
+    // the point at which the probe collides with the stage
+    Real height = sys.bounding_box.lower[2] + probe.radius;
     for(const auto& sph : sys.particles)
     {
         const Real dz_sph = collision_z(sphere<Real>{
@@ -57,7 +58,8 @@ Real collide_at(const system<Real>& sys, const default_probe<Real>& probe)
             height = std::max(height, probe.apex[2] + dz_sph);
         }
     }
-    return height;
+    // subtract probe radius to set the ground as 0
+    return height - probe.radius;
 }
 
 template<typename Real>
