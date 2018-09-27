@@ -61,9 +61,9 @@ read_as_angstrom(const toml::value& v, const std::string& name)
             {
                 return static_cast<T>(val * 0.01);
             }
-            if(unit == "angst" || unit == u8"Å" || unit == u8"Å")
+            if(unit == "angst" || unit == "angstrom" || unit == u8"Å" || unit == u8"Å")
             {
-                // middle is U+212B "angstrom",
+                // left is U+212B "angstrom",
                 // right is U+00C5 "latin capical letter A with ring above".
                 return static_cast<T>(val);
             }
