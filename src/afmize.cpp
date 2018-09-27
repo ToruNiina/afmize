@@ -39,10 +39,11 @@ Real descretize(const Real x, const Real resolution, const Real min_val)
 }
 
 template<typename Real>
-Real collide_at(const system<Real>& sys, const default_probe<Real>& probe)
+Real collide_at(const system<Real>& sys, const default_probe<Real>& probe,
+                const Real bottom)
 {
     // the point at which the probe collides with the stage
-    Real height = sys.bounding_box.lower[2] + probe.radius;
+    Real height = bottom + probe.radius;
     for(const auto& sph : sys.particles)
     {
         const Real dz_sph = collision_z(sphere<Real>{
@@ -201,13 +202,57 @@ int main(int argc, char** argv)
             mave::vector<Real, 3>{0, 0, 0}
         };
 
+    // stage information ...
+    const bool stage_align    = [](const toml::table& root) -> bool {
+        if(root.count("stage")  == 0) {return false;}
+        const auto& stage = afmize::get<toml::table>(root, "stage", "root");
+        if(stage.count("align") == 0) {return false;}
+        return toml::get<bool>(stage.at("align"));
+    }(config);
+
+    const Real stage_position = [](const toml::table& root) -> Real {
+        if(root.count("stage")  == 0)
+        {
+            return std::numeric_limit<Real>::quiet_NaN();
+        }
+        const auto& stage = afmize::get<toml::table>(root, "stage", "root");
+        if(stage.count("position") == 0)
+        {
+            return std::numeric_limit<Real>::quiet_NaN();
+        }
+        return afmize::read_as_angstrom<Real>(stage, "position");
+    }(config);
+
+    if(stage_align && std::isnan(stage_position))
+    {
+        std::cerr << "stage.align == true but stage.position is not defined!" << sstd::endl;
+        std::cerr << "In order to align system on the stage, you need to input\n"
+                     " the z-coordinate position of your stage." << std::endl;
+        return EXIT_FAILURE;
+    }
+
     std::cout << "done. creating image..." << std::endl;
 
     try
     {
         while(!reader->is_eof())
         {
-            const afmize::system<Real> sys(reader->read_snapshot());
+            const auto sys = [=](auto sys) -> afmize::system<Real> {
+                if(stage_align) // align the lower edge of bounding box to stage
+                {
+                    assert(!std::isnan(stage_position));
+                    const auto dz = sys.bounding_box.lower[2] - stage_position;
+                    for(auto& p : sys.particles)
+                    {
+                        p.center[2] -= dz;
+                    }
+                }
+                return sys;
+            }(reader->read_snapshot());
+
+            const Real bottom = std::isnan(stage_position) ?
+                                sys.bounding_box.lower[2] : stage_position;
+
             const Real initial_z = sys.bounding_box.upper[2] + probe.radius;
 
             for(std::size_t j=0; j<stg.y_pixel(); ++j)
@@ -218,9 +263,9 @@ int main(int argc, char** argv)
                     probe.apex[2] = initial_z;
 
                     stg(i, j) = afmize::descretize(
-                        afmize::collide_at(sys, probe),
+                        afmize::collide_at(sys, probe, bottom),
                         stg.z_resolution(),
-                        sys.bounding_box.lower[2]);
+                        bottom);
                 }
             }
 
