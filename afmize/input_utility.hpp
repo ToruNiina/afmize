@@ -94,8 +94,9 @@ read_as_angstrom(const toml::value& v, const std::string& name)
         }
         default:
         {
-            throw std::runtime_error("`"s + name + "` has "s +
-                    "invalid type (none of string, float, or integer.)"s);
+            std::ostringstream oss; oss << v.which();
+            throw std::runtime_error("`"s + name + "` has invalid type `"s +
+                    oss.str() + "` (none of string, float, or integer)."s);
         }
     }
 }
