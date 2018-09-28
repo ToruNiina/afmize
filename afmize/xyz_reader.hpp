@@ -115,7 +115,7 @@ class xyz_reader final : public reader_base<realT>
 
         try
         {
-            particle.radius = parameter<realT>::radius.at(name);
+            particle.radius = parameter<realT>::radius_atom.at(name);
         }
         catch(std::out_of_range)
         {

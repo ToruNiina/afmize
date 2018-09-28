@@ -1,7 +1,7 @@
 #ifndef AFMIZE_PARAMETER_HPP
 #define AFMIZE_PARAMETER_HPP
 #include <string>
-#include <unordered_map>
+#include <map>
 
 namespace afmize
 {
@@ -9,7 +9,8 @@ namespace afmize
 template<typename realT>
 struct parameter
 {
-    static std::unordered_map<std::string, realT> radius;
+    static std::map<std::string, realT> radius_atom;
+    static std::map<std::string, std::map<std::string, realT>> radius_residue;
 };
 
 // Van der Waals radii. unit is Angstrom. overwritable from config file.
@@ -20,7 +21,7 @@ struct parameter
 //     "Consistent van der Waals Radii for the Whole Main Group".
 //     J. Phys. Chem. A. 113 (19): 5806–12. doi:10.1021/jp8111556.
 template<typename realT>
-std::unordered_map<std::string, realT> parameter<realT>::radius = {
+std::map<std::string, realT> parameter<realT>::radius_atom = {
     { "H", 1.20},
     {"HE", 1.40},
     { "B", 1.92},
@@ -40,6 +41,10 @@ std::unordered_map<std::string, realT> parameter<realT>::radius = {
     { "K", 2.75},
     {"CA", 2.31},
 };
+
+template<typename realT>
+std::map<std::string /* residue */, std::map<std::string /* atom */, realT>>
+parameter<realT>::radius_residue;
 
 } // afmize
 #endif// AFMIZE_PARAMETER_HPP

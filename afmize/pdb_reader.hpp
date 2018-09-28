@@ -132,44 +132,7 @@ class pdb_reader final : public reader_base<realT>
         }
 
         sphere<realT> particle;
-
-        // according to wwPDB 3.3
-        //> Alignment of one-letter atom name such as C starts at column 14,
-        //> while two-letter atom name such as FE starts at column 13.
-        try
-        {
-            if(!std::isupper(line.at(12)))
-            {
-                particle.radius =
-                    parameter<realT>::radius.at(this->get_substr(line, ln, 13, 1));
-            }
-            else
-            {
-                particle.radius =
-                    parameter<realT>::radius.at(this->get_substr(line, ln, 12, 2));
-            }
-        }
-        catch(std::out_of_range)
-        {
-            std::cerr << "unknown atom name found at line " << ln << ".\n";
-            this->highlight_columns(std::cerr, line, 12, 4);
-            std::cerr << "according to wwPDB 3.3,\n> one-letter atom name "
-                         "such as C starts at column 14,\n> while two-letter "
-                         "atom name such as FE starts at column 13.\n";
-            std::cerr << "see also:\nhttp://www.wwpdb.org/documentation/"
-                         "file-format-content/format33/sect9.html#ATOM\n";
-            if(line.at(12) == 'H')
-            {
-                std::cerr << "WARNING: It looks like a hydrogen. "
-                          << "continue reading...";
-                particle.radius = parameter<realT>::radius.at("H");
-                std::cerr << "\n\n";
-            }
-            else
-            {
-                std::exit(EXIT_FAILURE);
-            }
-        }
+        particle.radius = this->get_radius(line);
 
         try
         {
@@ -233,6 +196,57 @@ class pdb_reader final : public reader_base<realT>
 
         return particle;
     }
+
+    realT get_radius(const std::string& line)
+    {
+        // according to wwPDB 3.3
+        //> Alignment of one-letter atom name such as C starts at column 14,
+        //> while two-letter atom name such as FE starts at column 13.
+        try
+        {
+            const auto tmp = this->get_substr(line, ln, 13, 1);
+            std::string res;
+            std::copy_if(tmp.begin(), tmp.end(), res.begin(), [](char c) {
+                    return !std::isspace(c);
+                });
+
+            const auto atm = (!std::isupper(line.at(12))) ?
+                              this->get_substr(line, ln, 13, 1) :
+                              this->get_substr(line, ln, 12, 2);
+
+            if(parameter<realT>::radius_residue.count(res) == 1)
+            {
+                const auto& rs = parameter<realT>::radius_residue.at(res);
+                if(rs.count(atm) == 1)
+                {
+                    return rs.at(atm);
+                }
+            }
+
+            return parameter<realT>::radius_atom.at(atm);
+        }
+        catch(std::out_of_range)
+        {
+            std::cerr << "unknown atom name found at line " << ln << ".\n";
+            this->highlight_columns(std::cerr, line, 12, 4);
+            std::cerr << "according to wwPDB 3.3,\n> one-letter atom name "
+                         "such as C starts at column 14,\n> while two-letter "
+                         "atom name such as FE starts at column 13.\n";
+            std::cerr << "see also:\nhttp://www.wwpdb.org/documentation/"
+                         "file-format-content/format33/sect9.html#ATOM\n";
+            if(line.at(12) == 'H')
+            {
+                std::cerr << "WARNING: It seems to be a hydrogen. "
+                          << "continue reading...\n\n";
+                return parameter<realT>::radius_atom.at("H");
+            }
+            else
+            {
+                std::exit(EXIT_FAILURE);
+            }
+        }
+    }
+
 
   private:
 

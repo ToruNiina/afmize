@@ -5,6 +5,7 @@
 #include <afmize/pdb_reader.hpp>
 #include <afmize/input_utility.hpp>
 #include <extlib/pnm/pnm.hpp>
+#include <limits>
 #include <string>
 
 namespace afmize
@@ -133,6 +134,8 @@ void write_ppm(const stage<Real>& stg, const std::string& out)
 
 int main(int argc, char** argv)
 {
+    using namespace std::literals::string_literals;
+
     using Real = double;
     constexpr Real pi             = Real(3.1415926535897932384626);
     constexpr Real deg_to_rad     = pi / Real(180.0);
@@ -156,11 +159,39 @@ int main(int argc, char** argv)
 
     if(config.count("radii") == 1)
     {
-        for(const auto& kv : afmize::get<toml::table>(config, "radii", "root"))
+        const auto& radii = toml::get<toml::table>(config.at("radii"));
+        if(radii.count("atom") == 1)
         {
-            const auto atom_name   = kv.first;
-            const auto atom_radius = toml::get<Real>(kv.second);
-            afmize::parameter<Real>::radius[atom_name] = atom_radius;
+            for(const auto& kv : toml::get<toml::table>(radii.at("atom")))
+            {
+                afmize::parameter<Real>::radius_atom[kv.first] =
+                    afmize::read_as_angstrom<Real>(kv.second, "radii.atom");
+            }
+        }
+        if(radii.count("residue") == 1)
+        {
+            for(const auto& res : toml::get<toml::table>(radii.at("residue")))
+            {
+                for(const auto& atm : toml::get<toml::table>(res.second))
+                {
+                    afmize::parameter<Real>::radius_residue[res.first][atm.first] =
+                        afmize::read_as_angstrom<Real>(atm.second,
+                                "radii."s + res.first + "."s + atm.first);
+                }
+            }
+        }
+    }
+
+    for(const auto& kv : afmize::parameter<Real>::radius_atom)
+    {
+        std::cerr << "-- radius of ATOM:" << kv.first << " = " << kv.second << '\n';
+    }
+    for(const auto& kv1 : afmize::parameter<Real>::radius_residue)
+    {
+        for(const auto& kv2 : kv1.second)
+        {
+            std::cerr << "-- radius of ATOM:" << kv2.first << " in RES:"
+                      << kv1.first << " = " << kv2.second << '\n';
         }
     }
 
@@ -213,19 +244,19 @@ int main(int argc, char** argv)
     const Real stage_position = [](const toml::table& root) -> Real {
         if(root.count("stage")  == 0)
         {
-            return std::numeric_limit<Real>::quiet_NaN();
+            return std::numeric_limits<Real>::quiet_NaN();
         }
         const auto& stage = afmize::get<toml::table>(root, "stage", "root");
         if(stage.count("position") == 0)
         {
-            return std::numeric_limit<Real>::quiet_NaN();
+            return std::numeric_limits<Real>::quiet_NaN();
         }
-        return afmize::read_as_angstrom<Real>(stage, "position");
+        return afmize::read_as_angstrom<Real>(stage.at("position"), "stage.position");
     }(config);
 
     if(stage_align && std::isnan(stage_position))
     {
-        std::cerr << "stage.align == true but stage.position is not defined!" << sstd::endl;
+        std::cerr << "stage.align == true but stage.position is not defined!" << std::endl;
         std::cerr << "In order to align system on the stage, you need to input\n"
                      " the z-coordinate position of your stage." << std::endl;
         return EXIT_FAILURE;
@@ -248,7 +279,7 @@ int main(int argc, char** argv)
                     }
                 }
                 return sys;
-            }(reader->read_snapshot());
+            }(afmize::system<Real>(reader->read_snapshot()));
 
             const Real bottom = std::isnan(stage_position) ?
                                 sys.bounding_box.lower[2] : stage_position;
