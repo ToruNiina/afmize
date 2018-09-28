@@ -35,10 +35,12 @@ resolution.z = "0.64Å"
 range.x      = ["0.0nm", "100.0nm"]
 range.y      = ["0.0nm", "100.0nm"]
 
-stage.align    = true
-stage.position = "1.0Å" # z coordinate of stage
+stage.position = "1.0Å" # z coordinate of stage position
+stage.align    = true   # if true, afmize moves the structure to make the bottom of the bounding box is equal to stage.position.
 
-radii.H      = 0.1 # you can set radii of all the elements found in pdb file.
+radii.atom.H = "0.1angstrom"  # radius of all the elements
+radii.residue.ARG.CA = "3.0Å" # radius for a specific pair of residue and atom.
+# radii of the other atoms in the residue ARG will be the default values.
 ```
 
 ### Supported file formats
