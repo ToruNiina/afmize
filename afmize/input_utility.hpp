@@ -49,6 +49,11 @@ read_as_angstrom(const toml::value& v, const std::string& name)
                 const auto& str = toml::get<std::string>(v);
                 auto iter  = str.begin();
                 auto token = toml::detail::lex_float::invoke(iter, str.end());
+                if(!token)
+                {
+                    throw std::runtime_error("format `"s + str +
+                        "` does not meet the TOML v0.5.0 floating-point requrement."s);
+                }
                 auto last  = std::remove(token->begin(), token->end(), '_');
                 token->erase(last, token->end());
                 num  = *token;
