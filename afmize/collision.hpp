@@ -32,6 +32,7 @@ Real collision_z(const circular_frustum<Real>& probe,
     const auto threshold = probe.radius + cos_theta * target.radius;
     if(threshold < dist_xy)
     {
+        if(probe.angle == 0.0) {return std::numeric_limits<Real>::quiet_NaN();}
         // collides at the lateral surface of circular frustum
         return target.center[2] -
             ((dist_xy - probe.radius - target.radius * cos_theta) /

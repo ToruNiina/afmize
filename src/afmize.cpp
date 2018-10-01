@@ -54,7 +54,10 @@ Real collide_at(const system<Real>& sys, const default_probe<Real>& probe,
                 probe.angle, probe.radius, probe.apex
             }, sph);
 
-        height = std::max(height, probe.apex[2] + dz_frs);
+        if(!std::isnan(dz_frs))
+        {
+            height = std::max(height, probe.apex[2] + dz_frs);
+        }
         if(!std::isnan(dz_sph))
         {
             height = std::max(height, probe.apex[2] + dz_sph);
