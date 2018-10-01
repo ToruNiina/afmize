@@ -1,5 +1,6 @@
 afmize
 ====
+[![Build Status](https://www.travis-ci.com/ToruNiina/afmize.svg?branch=master)](https://www.travis-ci.com/ToruNiina/afmize)
 
 making pseudo AFM images from structure file.
 
