@@ -52,3 +52,56 @@ BOOST_AUTO_TEST_CASE(collision_sphere_sphere)
         BOOST_TEST(std::isnan(t));
     }
 }
+
+BOOST_AUTO_TEST_CASE(collision_frustum_sphere)
+{
+    using sphere  = afmize::sphere<double>;
+    using frustum = afmize::circular_frustum<double>;
+    using point   = mave::vector<double, 3>;
+
+    {
+        frustum probe {0.0, 1.0, point{0.0, 0.0, 10.0}}; // just a cylinder
+        sphere  target{     1.0, point{0.0, 0.0,  0.0}};
+
+        const auto t = afmize::collision_z(probe, target);
+        BOOST_TEST(!std::isnan(t));
+        BOOST_TEST(t == -9.0, boost::test_tools::tolerance(1e-6));
+    }
+    {
+        frustum probe {0.0, 1.0, point{0.0, 0.0, 10.0}};
+        sphere  target{     1.0, point{0.0, 0.0, 20.0}};
+
+        const auto t = afmize::collision_z(probe, target);
+        BOOST_TEST(!std::isnan(t));
+        BOOST_TEST(t == 11.0, boost::test_tools::tolerance(1e-6));
+    }
+
+    {
+        frustum probe {0.0, 1.0, point{0.0, 0.0, 10.0}};
+        sphere  target{     1.0, point{1.5, 0.0,  0.0}};
+        const double expect = std::sqrt(3.0) * 0.5 - 10.0;
+
+        const auto t = afmize::collision_z(probe, target);
+
+        BOOST_TEST(!std::isnan(t));
+        BOOST_TEST(t == expect, boost::test_tools::tolerance(1e-6));
+    }
+    {
+        frustum probe {0.0, 1.0, point{0.0, 0.0, 10.0}};
+        sphere  target{     1.0, point{0.0, 1.5,  0.0}};
+        const double expect = std::sqrt(3.0) * 0.5 - 10.0;
+
+        const auto t = afmize::collision_z(probe, target);
+
+        BOOST_TEST(!std::isnan(t));
+        BOOST_TEST(t == expect, boost::test_tools::tolerance(1e-6));
+    }
+
+    {
+        sphere probe {1.0, point{ 0.0,  0.0, 10.0}};
+        sphere target{1.0, point{10.0, 10.0,  0.0}};
+
+        const auto t = afmize::collision_z(probe, target);
+        BOOST_TEST(std::isnan(t));
+    }
+}
