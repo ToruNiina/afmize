@@ -29,6 +29,11 @@ matrix:
     compiler: clang
     env: COMPILER="clang++" CXX_STANDARD=14
 
+# to avoid "Permission denied (publickey)." when initializing git submodules
+# after replacing git@github to https://github.com, initialize submodules
+git:
+    submodules: false
+
 script:
 - |
   if [[ "${TRAVIS_OS_NAME}" == "linux" ]]; then
@@ -41,6 +46,8 @@ script:
     brew upgrade cmake
   fi
 - cmake --version
+- sed -i 's/git@github.com:/https:\/\/github.com\//' .gitmodules
+- git submodule update --init --recursive
 - mkdir build
 - cd build
 - cmake -DCMAKE_CXX_COMPILER=$COMPILER -DCMAKE_CXX_STANDARD=$CXX_STANDARD ..
