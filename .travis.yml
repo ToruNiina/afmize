@@ -1,0 +1,48 @@
+dist: trusty
+language: cpp
+
+matrix:
+  include:
+  - os: linux
+    language: cpp
+    compiler: gcc
+    env: COMPILER="g++-7" CXX_STANDARD=14
+    addons:
+      apt:
+        sources:
+        - ubuntu-toolchain-r-test
+        packages:
+        - g++-7
+  - os: linux
+    language: cpp
+    compiler: clang
+    env: COMPILER="clang++-6.0" CXX_STANDARD=14
+    addons:
+      apt:
+        sources:
+        - ubuntu-toolchain-r-test
+        - llvm-toolchain-trusty-6.0
+        packages:
+        - clang-6.0
+  - os: osx
+    language: cpp
+    compiler: clang
+    env: COMPILER="clang++" CXX_STANDARD=14
+
+script:
+- |
+  if [[ "${TRAVIS_OS_NAME}" == "linux" ]]; then
+    mkdir -p cmake
+    travis_retry wget "https://cmake.org/files/v3.11/cmake-3.11.2-Linux-x86_64.tar.gz"
+    tar xf cmake-3.11.2-Linux-x86_64.tar.gz -C cmake --strip-components=1
+    export PATH=${TRAVIS_BUILD_DIR}/cmake/bin:${PATH}
+  else
+    brew install cmake
+    brew upgrade cmake
+  fi
+- cmake --version
+- mkdir build
+- cd build
+- cmake -DCMAKE_CXX_COMPILER=$COMPILER -DCMAKE_CXX_STANDARD=$CXX_STANDARD ..
+- make
+- ctest --output-on-failure
