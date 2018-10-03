@@ -188,14 +188,16 @@ int main(int argc, char** argv)
 
     for(const auto& kv : afmize::parameter<Real>::radius_atom)
     {
-        std::cerr << "-- radius of ATOM:" << kv.first << " = " << kv.second << '\n';
+        std::cerr << "-- radius of ATOM:" << std::setw(4) << kv.first
+                  << " = " << kv.second << '\n';
     }
     for(const auto& kv1 : afmize::parameter<Real>::radius_residue)
     {
         for(const auto& kv2 : kv1.second)
         {
-            std::cerr << "-- radius of ATOM:" << kv2.first << " in RES:"
-                      << kv1.first << " = " << kv2.second << '\n';
+            std::cerr << "-- radius of ATOM:" << std::setw(4) << kv2.first
+                      << " in RES:" << std::setw(5) << kv1.first
+                      << " = " << kv2.second << '\n';
         }
     }
 
