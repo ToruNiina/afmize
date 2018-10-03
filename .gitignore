@@ -1,1 +1,4 @@
 build/*
+*csv
+*json
+*ppm
