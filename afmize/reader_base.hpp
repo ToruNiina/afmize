@@ -26,6 +26,8 @@ class reader_base
     virtual trajectory_type read_trajectory() = 0;
     virtual snapshot_type   read_snapshot()   = 0;
 
+    virtual std::size_t size() const noexcept = 0;
+
   protected:
 
     void highlight_columns(std::ostream& os, const std::string& line,

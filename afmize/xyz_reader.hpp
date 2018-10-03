@@ -3,7 +3,10 @@
 #include <afmize/parameter.hpp>
 #include <afmize/read_number.hpp>
 #include <afmize/reader_base.hpp>
+#include <algorithm>
+#include <iterator>
 #include <sstream>
+#include <iostream>
 
 namespace afmize
 {
@@ -18,13 +21,36 @@ class xyz_reader final : public reader_base<realT>
     using trajectory_type = typename base_type::trajectory_type;
 
     xyz_reader(const std::string& fname)
-        : base_type(fname), ln(0), xyz(fname)
+        : base_type(fname), size_(0), ln(0), xyz(fname)
     {
         if(!xyz.good()) {throw std::runtime_error("file open error: " + fname);}
+
+        std::string line;
+        std::getline(xyz, line);
+        size_++;
+        const std::size_t snapshot = std::stoull(line) + 2;
+
+        while(std::getline(xyz, line))
+        {
+            size_++;
+        }
+        xyz.clear(); // clear the EOF flag
+        xyz.seekg(0, std::ios_base::beg);
+
+        if(this->size_ % snapshot != 0)
+        {
+            std::cerr << "file has invalid size: " << snapshot
+                      << " lines per snapshot, but there are " << this->size_
+                      << " lines (" << this->size_ << " % " << snapshot
+                      << " = " << this->size_ % snapshot << "). "
+                      << "this may cause error."<< std::endl;
+        }
+        this->size_ /= snapshot;
     }
     ~xyz_reader() override = default;
 
     bool is_eof() override {xyz.peek(); return xyz.eof();}
+    std::size_t size() const noexcept override {return this->size_;}
 
     trajectory_type read_trajectory() override
     {
@@ -69,14 +95,14 @@ class xyz_reader final : public reader_base<realT>
         }
         catch(std::invalid_argument)
         {
-            std::cerr << "invalid format in number of element at line "
+            std::cerr << "\ninvalid format in number of element at line "
                       << ln << ".\n";
             std::cerr << "> " << n_elem << '\n';
             std::exit(EXIT_FAILURE);
         }
         catch(std::out_of_range)
         {
-            std::cerr << "too many atoms in one snapshot at line"
+            std::cerr << "\ntoo many atoms in one snapshot at line"
                       << ln << ".\n";
             std::cerr << "> " << n_elem << '\n';
             std::exit(EXIT_FAILURE);
@@ -119,7 +145,7 @@ class xyz_reader final : public reader_base<realT>
         }
         catch(std::out_of_range)
         {
-            std::cerr << "unknown atom name found at line " << ln << ".\n";
+            std::cerr << "\nunknown atom name found at line " << ln << ".\n";
             this->highlight_columns(std::cerr, line, 0, name.size());
             std::exit(EXIT_FAILURE);
         }
@@ -130,14 +156,14 @@ class xyz_reader final : public reader_base<realT>
         }
         catch(std::invalid_argument)
         {
-            std::cerr << "invalid format at line " << ln << ".\n";
+            std::cerr << "\ninvalid format at line " << ln << ".\n";
             std::cerr << "> " << line << '\n';
             std::cerr << base_type::mes_float_format_err;
             std::exit(EXIT_FAILURE);
         }
         catch(std::out_of_range)
         {
-            std::cerr << "invalid value at line" << ln << ".\n";
+            std::cerr << "\ninvalid value at line" << ln << ".\n";
             std::cerr << "> " << line << '\n';
             std::cerr << base_type::mes_float_range_err;
             std::exit(EXIT_FAILURE);
@@ -149,14 +175,14 @@ class xyz_reader final : public reader_base<realT>
         }
         catch(std::invalid_argument)
         {
-            std::cerr << "invalid format at line " << ln << ".\n";
+            std::cerr << "\ninvalid format at line " << ln << ".\n";
             std::cerr << "> " << line << '\n';
             std::cerr << base_type::mes_float_format_err;
             std::exit(EXIT_FAILURE);
         }
         catch(std::out_of_range)
         {
-            std::cerr << "invalid value at line" << ln << ".\n";
+            std::cerr << "\ninvalid value at line" << ln << ".\n";
             std::cerr << "> " << line << '\n';
             std::cerr << base_type::mes_float_range_err;
             std::exit(EXIT_FAILURE);
@@ -168,14 +194,14 @@ class xyz_reader final : public reader_base<realT>
         }
         catch(std::invalid_argument)
         {
-            std::cerr << "invalid format at line " << ln << ".\n";
+            std::cerr << "\ninvalid format at line " << ln << ".\n";
             std::cerr << "> " << line << '\n';
             std::cerr << base_type::mes_float_format_err;
             std::exit(EXIT_FAILURE);
         }
         catch(std::out_of_range)
         {
-            std::cerr << "invalid value at line" << ln << ".\n";
+            std::cerr << "\ninvalid value at line" << ln << ".\n";
             std::cerr << "> " << line << '\n';
             std::cerr << base_type::mes_float_range_err;
             std::exit(EXIT_FAILURE);
@@ -186,6 +212,7 @@ class xyz_reader final : public reader_base<realT>
 
   private:
 
+    std::size_t   size_;
     std::size_t   ln;
     std::ifstream xyz;
 };

@@ -18,7 +18,7 @@ class pdb_reader final : public reader_base<realT>
 
     pdb_reader(const std::string& fname, const bool read_hetatms = false)
         : base_type(fname), model_found(false), read_HETATMs(read_hetatms),
-          ln(0), pdb(fname)
+          size_(0), ln(0), pdb(fname)
     {
         if(!pdb.good()) {throw std::runtime_error("file open error: " + fname);}
 
@@ -31,20 +31,23 @@ class pdb_reader final : public reader_base<realT>
                 if(line.substr(0, 5) == "MODEL")
                 {
                     this->model_found = true;
-                    break;
+                    // if there are `MODEL` line, there should be several models.
+                    // count number of `MODEL` and replace this->size_
+                    this->size_++;
                 }
             }
-            catch(...)
-            {
-                continue;
-            }
+            catch(...) {/* do nothing */}
             this->pdb.peek();
         }
+        this->pdb.clear(); // clear the EOF flag
         this->pdb.seekg(0, std::ios_base::beg);
+
+        if(!this->model_found) {this->size_ = 1;}
     }
     ~pdb_reader() override = default;
 
     bool is_eof() override {pdb.peek(); return pdb.eof();}
+    std::size_t size() const noexcept override {return this->size_;}
 
     trajectory_type read_trajectory() override
     {
@@ -71,7 +74,7 @@ class pdb_reader final : public reader_base<realT>
 
     snapshot_type read_snapshot() override
     {
-        if(model_found)
+        if(model_found) // seek line after `MODEL`
         {
             while(!pdb.eof())
             {
@@ -141,14 +144,14 @@ class pdb_reader final : public reader_base<realT>
         }
         catch(std::invalid_argument)
         {
-            std::cerr << "invalid format at line " << ln << ".\n";
+            std::cerr << "\ninvalid format at line " << ln << ".\n";
             this->highlight_columns(std::cerr, line, 30, 8);
             std::cerr << base_type::mes_float_format_err;
             std::exit(EXIT_FAILURE);
         }
         catch(std::out_of_range)
         {
-            std::cerr << "invalid value at line" << ln << ".\n";
+            std::cerr << "\ninvalid value at line" << ln << ".\n";
             this->highlight_columns(std::cerr, line, 30, 8);
             std::cerr << base_type::mes_float_range_err;
             std::exit(EXIT_FAILURE);
@@ -161,14 +164,14 @@ class pdb_reader final : public reader_base<realT>
         }
         catch(std::invalid_argument)
         {
-            std::cerr << "invalid format at line " << ln << ".\n";
+            std::cerr << "\ninvalid format at line " << ln << ".\n";
             this->highlight_columns(std::cerr, line, 38, 8);
             std::cerr << base_type::mes_float_format_err;
             std::exit(EXIT_FAILURE);
         }
         catch(std::out_of_range)
         {
-            std::cerr << "invalid value at line" << ln << ".\n";
+            std::cerr << "\ninvalid value at line" << ln << ".\n";
             this->highlight_columns(std::cerr, line, 38, 8);
             std::cerr << base_type::mes_float_range_err;
             std::exit(EXIT_FAILURE);
@@ -181,14 +184,14 @@ class pdb_reader final : public reader_base<realT>
         }
         catch(std::invalid_argument)
         {
-            std::cerr << "invalid format at line " << ln << ".\n";
+            std::cerr << "\ninvalid format at line " << ln << ".\n";
             this->highlight_columns(std::cerr, line, 46, 8);
             std::cerr << base_type::mes_float_format_err;
             std::exit(EXIT_FAILURE);
         }
         catch(std::out_of_range)
         {
-            std::cerr << "invalid value at line" << ln << ".\n";
+            std::cerr << "\ninvalid value at line" << ln << ".\n";
             this->highlight_columns(std::cerr, line, 46, 8);
             std::cerr << base_type::mes_float_range_err;
             std::exit(EXIT_FAILURE);
@@ -227,7 +230,7 @@ class pdb_reader final : public reader_base<realT>
         }
         catch(std::out_of_range)
         {
-            std::cerr << "unknown atom name found at line " << ln << ".\n";
+            std::cerr << "\nunknown atom name found at line " << ln << ".\n";
             this->highlight_columns(std::cerr, line, 12, 4);
             std::cerr << "according to wwPDB 3.3,\n> one-letter atom name "
                          "such as C starts at column 14,\n> while two-letter "
@@ -253,6 +256,7 @@ class pdb_reader final : public reader_base<realT>
 
     bool          model_found;
     bool          read_HETATMs;
+    std::size_t   size_;
     std::size_t   ln; // line number
     std::ifstream pdb;
 };
