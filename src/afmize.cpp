@@ -4,6 +4,7 @@
 #include <afmize/xyz_reader.hpp>
 #include <afmize/pdb_reader.hpp>
 #include <afmize/input_utility.hpp>
+#include <afmize/progress_bar.hpp>
 #include <extlib/pnm/pnm.hpp>
 #include <limits>
 #include <string>
@@ -156,7 +157,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    std::cout << "reading config file..." << std::endl;
+    std::cerr << "reading config file..." << std::endl;
 
     const auto config = toml::parse(config_file);
 
@@ -204,6 +205,8 @@ int main(int argc, char** argv)
             afmize::get<std::string>(file, "input", "[file]")
         );
     const auto output = afmize::get<std::string>(file, "output", "[file]");
+
+    std::cerr << "-- " << reader->size() << " snapshots are found\n";
 
     // image size information
     const auto& resolution = afmize::get<toml::table>(config, "resolution", "root");
@@ -265,12 +268,15 @@ int main(int argc, char** argv)
         return EXIT_FAILURE;
     }
 
-    std::cout << "done. creating image..." << std::endl;
-
+    afmize::progress_bar<70> bar(reader->size());
+    std::cerr << "done. creating image..." << std::endl;
     try
     {
+        std::size_t index = 0;
         while(!reader->is_eof())
         {
+            std::cerr << bar.format(index);
+
             const auto sys = [=](auto sys) -> afmize::system<Real> {
                 if(stage_align) // align the lower edge of bounding box to stage
                 {
@@ -303,15 +309,20 @@ int main(int argc, char** argv)
                 }
             }
 
-            afmize::write_ppm (stg, output);
-            afmize::write_csv (stg, output);
-            afmize::write_json(stg, output);
+            std::ostringstream oss;
+            oss << output << std::setfill('0') << std::setw(5) << index;
+
+            afmize::write_ppm (stg, oss.str());
+            afmize::write_csv (stg, oss.str());
+            afmize::write_json(stg, oss.str());
+            ++index;
         }
     }
     catch(afmize::reader_base<Real>::no_more_model)
     {
         ; // do nothing
     }
-    std::cout << "done." << std::endl;
+    std::cerr << bar.format(reader->size());
+    std::cerr << "done." << std::endl;
     return 0;
 }
