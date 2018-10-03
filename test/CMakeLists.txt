@@ -1,6 +1,7 @@
 set(TEST_NAMES
     test_collision
     test_read_as_angstrom
+    test_aabb
     )
 
 foreach(TEST_NAME ${TEST_NAMES})
