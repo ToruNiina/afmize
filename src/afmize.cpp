@@ -311,12 +311,18 @@ int main(int argc, char** argv)
                 }
             }
 
-            std::ostringstream oss;
-            oss << output << std::setfill('0') << std::setw(5) << index;
+            std::string outname(output);
+            if(reader->size() != 1)
+            {
+                std::ostringstream oss;
+                oss << '_' << std::setfill('0')
+                    << std::setw(std::to_string(reader->size()).size()) << index;
+                outname += oss.str();
+            }
 
-            afmize::write_ppm (stg, oss.str());
-            afmize::write_csv (stg, oss.str());
-            afmize::write_json(stg, oss.str());
+            afmize::write_ppm (stg, output);
+            afmize::write_csv (stg, output);
+            afmize::write_json(stg, output);
             ++index;
         }
     }
