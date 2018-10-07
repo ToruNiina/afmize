@@ -82,6 +82,12 @@ class progress_bar
 
     std::size_t total() const noexcept {return total_;}
 
+    void reset_total(std::size_t t)
+    {
+        this->total_   = t;
+        this->r_total_ = 1.0 / t;
+    }
+
   private:
 
     std::size_t total_;

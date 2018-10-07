@@ -270,14 +270,20 @@ int main(int argc, char** argv)
         return EXIT_FAILURE;
     }
 
-    afmize::progress_bar<70> bar(reader->size());
+    afmize::progress_bar<70> bar(
+        (reader->size() == 1) ? stg.x_pixel() * stg.y_pixel() : reader->size()
+        );
+
     std::cerr << "done. creating image..." << std::endl;
     try
     {
         std::size_t index = 0;
         while(!reader->is_eof())
         {
-            std::cerr << bar.format(index);
+            if(reader->size() != 1)
+            {
+                std::cerr << bar.format(index);
+            }
 
             const auto sys = [=](auto sys) -> afmize::system<Real> {
                 if(stage_align) // align the lower edge of bounding box to stage
@@ -308,7 +314,16 @@ int main(int argc, char** argv)
                         afmize::collide_at(sys, probe, bottom),
                         stg.z_resolution(),
                         bottom);
+
+                    if(reader->size() == 1)
+                    {
+                        std::cerr << bar.format(j * stg.x_pixel() + i);
+                    }
                 }
+            }
+            if(reader->size() == 1)
+            {
+                std::cerr << bar.format(stg.y_pixel() * stg.x_pixel());
             }
 
             std::string outname(output);
@@ -324,13 +339,13 @@ int main(int argc, char** argv)
             afmize::write_csv (stg, output);
             afmize::write_json(stg, output);
             ++index;
+
         }
     }
     catch(afmize::reader_base<Real>::no_more_model)
     {
         ; // do nothing
     }
-    std::cerr << bar.format(reader->size());
     std::cerr << "done." << std::endl;
     return 0;
 }
