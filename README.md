@@ -36,6 +36,8 @@ resolution.z = "0.64Å"
 range.x      = ["0.0nm", "100.0nm"]
 range.y      = ["0.0nm", "100.0nm"]
 
+scale_bar.length = "5.0nm"
+
 stage.position = "1.0Å" # z coordinate of stage position
 stage.align    = true   # if true, afmize moves the structure to make the bottom of the bounding box is equal to stage.position.
 
