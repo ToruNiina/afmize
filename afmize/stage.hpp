@@ -61,6 +61,8 @@ struct stage
     std::size_t x_pixel() const noexcept {return x_pixels_;}
     std::size_t y_pixel() const noexcept {return y_pixels_;}
 
+    std::vector<Real> const& get_container() const noexcept {return heights;}
+
   private:
 
     Real x_reso, y_reso, z_reso;
