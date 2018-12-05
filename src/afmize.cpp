@@ -358,9 +358,9 @@ int main(int argc, char** argv)
                 outname += oss.str();
             }
 
-            afmize::write_ppm (stg, output, scale_bar_length);
-            afmize::write_csv (stg, output);
-            afmize::write_json(stg, output);
+            afmize::write_ppm (stg, outname, scale_bar_length);
+            afmize::write_csv (stg, outname);
+            afmize::write_json(stg, outname);
             ++index;
         }
     }
