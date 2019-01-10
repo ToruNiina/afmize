@@ -102,7 +102,7 @@ void write_csv(const stage<Real>& stg, const std::string& out)
     {
         for(std::size_t i=0; i<stg.x_pixel(); ++i)
         {
-            ofs << stg(i, j) << ' ';
+            ofs << stg(i, j) << ',';
         }
         ofs << '\n';
     }
