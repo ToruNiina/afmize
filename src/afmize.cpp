@@ -136,6 +136,56 @@ void write_ppm(const stage<Real>& stg, const std::string& out)
     return;
 }
 
+template<typename Real>
+void write_svg(const stage<Real>& stg, const std::string& out,
+               const Real scale_bar)
+{
+    using namespace std::literals::string_literals;
+    std::ofstream svg(out + ".svg");
+    if(!svg.good())
+    {
+        throw std::runtime_error("file open error: " + out);
+    }
+
+    const auto img_width  = stg.x_pixel() * stg.x_resolution();
+    const auto img_height = stg.y_pixel() * stg.y_resolution();
+
+    svg << "<svg width=\"" << img_width << "\" height=\"" << img_height << "\">\n";
+
+    const auto minmax = std::minmax_element(stg.begin(), stg.end());
+    const auto minv = *minmax.first;
+    const auto maxv = *minmax.second;
+
+    for(std::size_t yi=0; yi<stg.y_pixel(); ++yi)
+    {
+        // origin of the image is upper left, but the physical origin is lower left.
+        // it makes the image physically "correct" (here, correct means top-view)
+        const auto y_pos = (stg.y_pixel() - yi - 1) * stg.y_resolution();
+        for(std::size_t xi=0; xi<stg.x_pixel(); ++xi)
+        {
+            const auto x_pos = xi * stg.x_resolution();
+            const auto color = color_afmhot<Real>(stg.at(xi, yi), minv, maxv);
+            svg << "<rect x=\""   << x_pos << "\" y=\"" << y_pos
+                << "\" width=\""  << stg.x_resolution()
+                << "\" height=\"" << stg.y_resolution() << "\" style=\""
+                << "fill:rgb(" << static_cast<int>(color.red)   << ','
+                               << static_cast<int>(color.green) << ','
+                               << static_cast<int>(color.blue)
+                << ");stroke:none\"/>\n";
+        }
+    }
+
+    // scale bar
+    svg << "<rect x=\"" << img_width  - stg.x_resolution() - scale_bar
+        << "\" y=\""    << img_height - stg.y_resolution()
+        << "\" width=\""  << scale_bar
+        << "\" height=\"" << stg.y_resolution() * 0.5
+        << "\" style=\"fill:white;stroke:none\"/>\n";
+
+    svg << "</svg>\n";
+    return;
+}
+
 } // afmize
 
 int main(int argc, char** argv)
@@ -344,6 +394,7 @@ int main(int argc, char** argv)
             afmize::write_ppm (stg, outname);
             afmize::write_csv (stg, outname);
             afmize::write_json(stg, outname);
+            afmize::write_svg (stg, outname, scale_bar_length);
             ++index;
         }
     }
