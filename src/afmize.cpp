@@ -110,8 +110,7 @@ void write_csv(const stage<Real>& stg, const std::string& out)
 }
 
 template<typename Real>
-void write_ppm(const stage<Real>& stg, const std::string& out,
-               const Real scale_bar)
+void write_ppm(const stage<Real>& stg, const std::string& out)
 {
     using namespace std::literals::string_literals;
     const auto minmax = std::minmax_element(stg.begin(), stg.end());
@@ -133,17 +132,10 @@ void write_ppm(const stage<Real>& stg, const std::string& out,
         reversed[ppm.y_size() - i - 1] = ppm[i];
     }
 
-    // overwrite scale bar at bottom right
-    const std::size_t scale_bar_length = scale_bar / stg.x_resolution();
-    for(std::size_t i=0; i<scale_bar_length; ++i)
-    {
-        reversed.at(ppm.y_size() - 2).at(stg.x_pixel() - 2 - i) =
-            pnm::rgb_pixel(255, 255, 255);
-    }
-
     pnm::write(out + ".ppm"s, reversed, pnm::format::binary);
     return;
 }
+
 } // afmize
 
 int main(int argc, char** argv)
@@ -243,15 +235,6 @@ int main(int argc, char** argv)
     const auto& scale_bar = afmize::get<toml::table>(config, "scale_bar", "root");
     const auto  scale_bar_length = afmize::read_as_angstrom<Real>(
         afmize::find(scale_bar, "length", "[scale_bar]"), "scale_bar.length");
-    if(std::abs(std::fmod(scale_bar_length, stg.x_resolution())) > 1e-8)
-    {
-        std::cerr << "error: scale bar length(" << scale_bar_length
-                  << ") is not a multiple of the resolution ("
-                  << stg.x_resolution() << ").\nThis invalidates the scale bar."
-                  << " please set the multiple of the resolution as the length"
-                  << " of the scale bar.\n";
-        return 1;
-    }
 
     // probe size information
     const auto& probe_tab  = afmize::get<toml::table>(config, "probe", "root");
@@ -358,7 +341,7 @@ int main(int argc, char** argv)
                 outname += oss.str();
             }
 
-            afmize::write_ppm (stg, outname, scale_bar_length);
+            afmize::write_ppm (stg, outname);
             afmize::write_csv (stg, outname);
             afmize::write_json(stg, outname);
             ++index;
