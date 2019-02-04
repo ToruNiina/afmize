@@ -1,6 +1,9 @@
 afmize
 ====
 [![Build Status](https://www.travis-ci.com/ToruNiina/afmize.svg?branch=master)](https://www.travis-ci.com/ToruNiina/afmize)
+[![version](https://img.shields.io/github/release/ToruNiina/afmize.svg?style=flat)](https://github.com/ToruNiina/afmize/releases)
+[![license](https://img.shields.io/github/license/ToruNiina/afmize.svg?style=flat)](https://github.com/ToruNiina/afmize/blob/master/LICENSE)
+[![DOI](https://zenodo.org/badge/148173645.svg)](https://zenodo.org/badge/latestdoi/148173645)
 
 making pseudo AFM images from structure file.
 
