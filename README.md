@@ -74,7 +74,7 @@ All other dependencies are managed by CMake script and git submodule.
 ### Building
 
 ```sh
-$ git submodule update
+$ git submodule update --init
 $ mkdir build
 $ cd build
 $ cmake ..
