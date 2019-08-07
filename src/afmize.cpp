@@ -213,27 +213,21 @@ int main(int argc, char** argv)
 
     const auto config = toml::parse(config_file);
 
-    if(config.count("radii") == 1)
+    if(config.as_table().count("radii") == 1)
     {
-        const auto& radii = toml::get<toml::table>(config.at("radii"));
-        if(radii.count("atom") == 1)
+        const auto& radii = toml::find(config, "radii");
+        for(const auto& kv : toml::find_or<toml::table>(radii, "atom", toml::table{}))
         {
-            for(const auto& kv : toml::get<toml::table>(radii.at("atom")))
-            {
-                afmize::parameter<Real>::radius_atom[kv.first] =
-                    afmize::read_as_angstrom<Real>(kv.second, "radii.atom");
-            }
+            afmize::parameter<Real>::radius_atom[kv.first] =
+                afmize::read_as_angstrom<Real>(kv.second, "radii.atom");
         }
-        if(radii.count("residue") == 1)
+        for(const auto& res : toml::find_or<toml::table>(radii, "residue", toml::table{}))
         {
-            for(const auto& res : toml::get<toml::table>(radii.at("residue")))
+            for(const auto& atm : res.second.as_table())
             {
-                for(const auto& atm : toml::get<toml::table>(res.second))
-                {
-                    afmize::parameter<Real>::radius_residue[res.first][atm.first] =
-                        afmize::read_as_angstrom<Real>(atm.second,
-                                "radii."s + res.first + "."s + atm.first);
-                }
+                afmize::parameter<Real>::radius_residue[res.first][atm.first] =
+                    afmize::read_as_angstrom<Real>(atm.second,
+                            "radii."s + res.first + "."s + atm.first);
             }
         }
     }
@@ -254,75 +248,56 @@ int main(int argc, char** argv)
     }
 
     // read input output files
-    const auto& file   = afmize::get<toml::table>(config, "file", "root");
+    const auto& file   = toml::find(config, "file");
     const auto  reader = afmize::open_file<Real>(
-            afmize::get<std::string>(file, "input", "[file]")
+            toml::find<std::string>(file, "input")
         );
-    const auto output = afmize::get<std::string>(file, "output", "[file]");
+    const auto output = toml::find<std::string>(file, "output");
 
     std::cerr << "-- " << reader->size() << " snapshots are found\n";
 
     // image size information
-    const auto& resolution = afmize::get<toml::table>(config, "resolution", "root");
-    const auto& range      = afmize::get<toml::table>(config, "range", "root");
-    auto range_x = afmize::get<std::pair<toml::value, toml::value>>(range, "x", "[range]");
-    auto range_y = afmize::get<std::pair<toml::value, toml::value>>(range, "y", "[range]");
+    const auto& resolution = toml::find(config, "resolution");
+    const auto& range      = toml::find(config, "range");
+    const auto range_x = toml::find<std::array<toml::value, 2>>(range, "x");
+    const auto range_y = toml::find<std::array<toml::value, 2>>(range, "y");
     afmize::stage<Real> stg(
-            afmize::read_as_angstrom<Real>(
-                afmize::find(resolution, "x", "[resolution]"), "resolution.x"),
-            afmize::read_as_angstrom<Real>(
-                afmize::find(resolution, "y", "[resolution]"), "resolution.y"),
-            afmize::read_as_angstrom<Real>(
-                afmize::find(resolution, "z", "[resolution]"), "resolution.z"),
-            std::make_pair(
-                afmize::read_as_angstrom<Real>(range_x.first,  "range_x"),
-                afmize::read_as_angstrom<Real>(range_x.second, "range_x")),
-            std::make_pair(
-                afmize::read_as_angstrom<Real>(range_y.first,  "range_y"),
-                afmize::read_as_angstrom<Real>(range_y.second, "range_y"))
-        );
+        afmize::read_as_angstrom<Real>(toml::find(resolution, "x"), "resolution.x"),
+        afmize::read_as_angstrom<Real>(toml::find(resolution, "y"), "resolution.y"),
+        afmize::read_as_angstrom<Real>(toml::find(resolution, "z"), "resolution.z"),
+        std::make_pair(afmize::read_as_angstrom<Real>(range_x[0], "range_x"),
+                       afmize::read_as_angstrom<Real>(range_x[1], "range_x")),
+        std::make_pair(afmize::read_as_angstrom<Real>(range_y[0], "range_y"),
+                       afmize::read_as_angstrom<Real>(range_y[1], "range_y"))
+    );
 
-    const auto& scale_bar = afmize::get<toml::table>(config, "scale_bar", "root");
-    const auto  scale_bar_length = afmize::read_as_angstrom<Real>(
-        afmize::find(scale_bar, "length", "[scale_bar]"), "scale_bar.length");
+    const auto scale_bar_length = afmize::read_as_angstrom<Real>(
+        toml::find(config, "scale_bar", "length"), "scale_bar.length");
 
     // probe size information
-    const auto& probe_tab  = afmize::get<toml::table>(config, "probe", "root");
-    const auto& probe_size = afmize::get<toml::table>(probe_tab, "size", "[probe]");
+    const auto& probe_tab  = toml::find(config, "probe");
+    const auto& probe_size = toml::find(probe_tab, "size");
     afmize::default_probe<Real> probe{
-            afmize::get<Real>(probe_size, "angle",  "[probe.size]") * deg_to_rad,
+            toml::find<Real>(probe_size, "angle") * deg_to_rad,
             afmize::read_as_angstrom<Real>(
-                afmize::find(probe_size, "radius", "[probe.size]"),
-                "probe.size.radius"),
+                toml::find(probe_size, "radius"), "probe.size.radius"),
             mave::vector<Real, 3>{0, 0, 0}
         };
 
     // stage information ...
-    const bool stage_align    = [](const toml::table& root) -> bool {
-        if(root.count("stage")  == 0) {return false;}
-        const auto& stage = afmize::get<toml::table>(root, "stage", "root");
-        if(stage.count("align") == 0) {return false;}
-        return toml::get<bool>(stage.at("align"));
-    }(config);
-
-    const Real stage_position = [](const toml::table& root) -> Real {
-        if(root.count("stage")  == 0)
-        {
-            return std::numeric_limits<Real>::quiet_NaN();
-        }
-        const auto& stage = afmize::get<toml::table>(root, "stage", "root");
-        if(stage.count("position") == 0)
-        {
-            return std::numeric_limits<Real>::quiet_NaN();
-        }
-        return afmize::read_as_angstrom<Real>(stage.at("position"), "stage.position");
-    }(config);
+    const auto& stage_tab  = toml::find_or(config, "stage", toml::value{});
+    const bool stage_align = toml::find_or<bool>(stage_tab, "align", false);
+    const Real stage_position = afmize::read_as_angstrom<Real>(
+        toml::find_or(stage_tab, "position", toml::value(std::numeric_limits<Real>::quiet_NaN())),
+        "stage.position");
 
     if(stage_align && std::isnan(stage_position))
     {
-        std::cerr << "stage.align == true but stage.position is not defined!" << std::endl;
-        std::cerr << "In order to align system on the stage, you need to input\n"
-                     " the z-coordinate position of your stage." << std::endl;
+        std::cerr << toml::format_error("[error] "
+                "`stage.align` requires `stage.position`.", stage_tab,
+                "in this table", {"In order to align system on the stage, "
+                "you need to input the z-coordinate position of your stage."
+                }) << std::endl;
         return EXIT_FAILURE;
     }
 
