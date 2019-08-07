@@ -110,12 +110,12 @@ void write_csv(const stage<Real>& stg, const std::string& out)
 }
 
 template<typename Real>
-void write_ppm(const stage<Real>& stg, const std::string& out)
+void write_ppm(const stage<Real>& stg, const std::string& out,
+               const std::pair<Real, Real> height_range)
 {
     using namespace std::literals::string_literals;
-    const auto minmax = std::minmax_element(stg.begin(), stg.end());
-    const auto min_elem = *minmax.first;
-    const auto max_elem = *minmax.second;
+    const auto min_elem = height_range.first;
+    const auto max_elem = height_range.second;
 
     pnm::image<pnm::rgb_pixel> ppm(stg.x_pixel(), stg.y_pixel());
     for(std::size_t i=0; i<stg.x_pixel() * stg.y_pixel(); ++i)
@@ -137,8 +137,20 @@ void write_ppm(const stage<Real>& stg, const std::string& out)
 }
 
 template<typename Real>
+void write_ppm(const stage<Real>& stg, const std::string& out)
+{
+    const auto minmax = std::minmax_element(stg.begin(), stg.end());
+    const auto min_elem = *minmax.first;
+    const auto max_elem = *minmax.second;
+
+    write_ppm(stg, out, std::make_pair(min_elem, max_elem));
+    return;
+}
+
+
+template<typename Real>
 void write_svg(const stage<Real>& stg, const std::string& out,
-               const Real scale_bar)
+               const Real scale_bar, const std::pair<Real, Real> height_range)
 {
     using namespace std::literals::string_literals;
     std::ofstream svg(out + ".svg");
@@ -152,9 +164,8 @@ void write_svg(const stage<Real>& stg, const std::string& out,
 
     svg << "<svg width=\"" << img_width << "\" height=\"" << img_height << "\">\n";
 
-    const auto minmax = std::minmax_element(stg.begin(), stg.end());
-    const auto minv = *minmax.first;
-    const auto maxv = *minmax.second;
+    const auto minv = height_range.first;
+    const auto maxv = height_range.second;
 
     for(std::size_t yi=0; yi<stg.y_pixel(); ++yi)
     {
@@ -185,6 +196,18 @@ void write_svg(const stage<Real>& stg, const std::string& out,
     svg << "</svg>\n";
     return;
 }
+
+template<typename Real>
+void write_svg(const stage<Real>& stg, const std::string& out,
+               const Real scale_bar)
+{
+    const auto minmax = std::minmax_element(stg.begin(), stg.end());
+    const auto minv = *minmax.first;
+    const auto maxv = *minmax.second;
+    write_svg(stg, out, scale_bar, std::make_pair(minv, maxv));
+    return;
+}
+
 
 } // afmize
 
@@ -285,11 +308,11 @@ int main(int argc, char** argv)
         };
 
     // stage information ...
+    const toml::value nan_v(std::numeric_limits<Real>::quiet_NaN());
     const auto& stage_tab  = toml::find_or(config, "stage", toml::value{});
     const bool stage_align = toml::find_or<bool>(stage_tab, "align", false);
     const Real stage_position = afmize::read_as_angstrom<Real>(
-        toml::find_or(stage_tab, "position", toml::value(std::numeric_limits<Real>::quiet_NaN())),
-        "stage.position");
+        toml::find_or(stage_tab, "position", nan_v), "stage.position");
 
     if(stage_align && std::isnan(stage_position))
     {
@@ -300,6 +323,13 @@ int main(int argc, char** argv)
                 }) << std::endl;
         return EXIT_FAILURE;
     }
+
+    // color range information ...
+    const auto& cmap = toml::find_or(config, "colormap", toml::value{});
+    const auto cmap_min = afmize::read_as_angstrom<Real>(
+        toml::find_or(cmap, "min", nan_v), "colormap.min");
+    const auto cmap_max = afmize::read_as_angstrom<Real>(
+        toml::find_or(cmap, "max", nan_v), "colormap.max");
 
     afmize::progress_bar<70> bar(
         (reader->size() == 1) ? stg.x_pixel() * stg.y_pixel() : reader->size()
@@ -366,10 +396,19 @@ int main(int argc, char** argv)
                 outname += oss.str();
             }
 
-            afmize::write_ppm (stg, outname);
             afmize::write_csv (stg, outname);
             afmize::write_json(stg, outname);
-            afmize::write_svg (stg, outname, scale_bar_length);
+            if(std::isnan(cmap_min) || std::isnan(cmap_max))
+            {
+                afmize::write_ppm (stg, outname);
+                afmize::write_svg (stg, outname, scale_bar_length);
+            }
+            else
+            {
+                afmize::write_ppm(stg, outname, std::make_pair(cmap_min, cmap_max));
+                afmize::write_svg(stg, outname, scale_bar_length,
+                                  std::make_pair(cmap_min, cmap_max));
+            }
             ++index;
         }
     }
