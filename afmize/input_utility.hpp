@@ -57,7 +57,8 @@ read_as_angstrom(const toml::value& v, const std::string& name)
         return static_cast<T>(val * 10'000'000.0);
     }
 
-    throw std::runtime_error("unknown length unit `" + unit + "` appeared");
+    throw std::runtime_error(toml::format_error("[error] unknown length unit `"s
+        + unit + "` appeared."s, v, "here"));
 }
 
 } // afmize
