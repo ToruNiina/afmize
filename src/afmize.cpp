@@ -285,7 +285,7 @@ int main(int argc, char** argv)
         };
 
     // stage information ...
-    const auto& stage_tab  = toml::find(config, "stage");
+    const auto& stage_tab  = toml::find_or(config, "stage", toml::value{});
     const bool stage_align = toml::find_or<bool>(stage_tab, "align", false);
     const Real stage_position = afmize::read_as_angstrom<Real>(
         toml::find_or(stage_tab, "position", toml::value(std::numeric_limits<Real>::quiet_NaN())),
