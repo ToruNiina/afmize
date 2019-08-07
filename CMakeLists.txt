@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 3.2)
 enable_testing()
 project(afmize)
 
-execute_process(COMMAND git submodule update --init --recursive)
+execute_process(COMMAND git submodule update --init --recursive
+                WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/extlib/toml)
 include_directories(${PROJECT_SOURCE_DIR})
 
