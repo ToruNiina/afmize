@@ -7,54 +7,37 @@ include_directories(${PROJECT_SOURCE_DIR}/extlib/toml)
 include_directories(${PROJECT_SOURCE_DIR})
 
 if(BOOST_ROOT)
-    find_package(Boost 1.67.0 REQUIRED)
+    find_package(Boost 1.69.0 REQUIRED)
     include_directories(${Boost_INCLUDE_DIRS})
 else()
-    if(EXISTS "${PROJECT_SOURCE_DIR}/extlib/boost_1_67_0/boost/version.hpp")
-            message(STATUS "boost 1.67.0 exists.")
+    if(EXISTS "${PROJECT_SOURCE_DIR}/extlib/boost_1_69_0/boost/version.hpp")
+        message(STATUS "boost 1.69.0 exists.")
+        include_directories(${PROJECT_SOURCE_DIR}/extlib/boost_1_69_0)
     else()
-        message(STATUS "downloading Boost 1.67.0 to ./extlib/ ...")
-        set(BOOST_TAR_BZ2_URL "https://dl.bintray.com/boostorg/release/1.67.0/source/boost_1_67_0.tar.bz2")
+        message(STATUS "Boost library not found. Donwloading...")
 
-        execute_process(COMMAND which wget RESULT_VARIABLE WGET_EXISTS OUTPUT_QUIET ERROR_QUIET)
-        execute_process(COMMAND which curl RESULT_VARIABLE CURL_EXISTS OUTPUT_QUIET ERROR_QUIET)
-        if(${WGET_EXISTS} EQUAL "0")
-            execute_process(COMMAND wget ${BOOST_TAR_BZ2_URL} WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/extlib")
-        elseif(${CURL_EXISTS} EQUAL "0")
-            execute_process(COMMAND curl ${BOOST_TAR_BZ2_URL} WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/extlib")
-        else()
-            message(FATAL_ERROR "neither wget nor curl found."
-                "cannot download boost_X_YY_Z.tar.bz automatically."
-                "please install wget or curl, or manually install boost and "
-                "provide -DBOOST_ROOT=/path/to/boost when you excute cmake.")
+        file(DOWNLOAD https://dl.bintray.com/boostorg/release/1.69.0/source/boost_1_69_0.tar.bz2
+            ${PROJECT_SOURCE_DIR}/extlib/boost_1_69_0.tar.bz2
+            EXPECTED_HASH SHA256=8f32d4617390d1c2d16f26a27ab60d97807b35440d45891fa340fc2648b04406
+            STATUS MJOLNIR_DOWNLOAD_BOOST_STATUS)
+
+        # check status
+        list(GET MJOLNIR_DOWNLOAD_BOOST_STATUS 0 MJOLNIR_DOWNLOAD_BOOST_RESULT)
+        if(NOT ${MJOLNIR_DOWNLOAD_BOOST_RESULT} EQUAL 0)
+            list(GET MJOLNIR_DOWNLOAD_BOOST_STATUS 1 MJOLNIR_DOWNLOAD_BOOST_ERROR)
+            message(FATAL_ERROR "failed to download Boost library."
+                ${MJOLNIR_DOWNLOAD_BOOST_ERROR})
         endif()
 
-        execute_process(COMMAND which sha256sum RESULT_VARIABLE SHA256SUM_EXISTS OUTPUT_QUIET ERROR_QUIET)
-        execute_process(COMMAND which shasum    RESULT_VARIABLE SHASUM_EXISTS    OUTPUT_QUIET ERROR_QUIET)
-        if(${SHA256SUM_EXISTS} EQUAL "0")
-            execute_process(COMMAND sha256sum --check boost_1_67_0_tar_bz2_sha256sum.dat
-                WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/extlib"
-                RESULT_VARIABLE   DOWNLOADED_SHA256SUM_RESULT)
-        elseif(${SHASUM_EXISTS} EQUAL "0")
-            execute_process(COMMAND shasum --algorithm 256 --check boost_1_67_0_tar_bz2_sha256sum.dat
-                WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/extlib"
-                RESULT_VARIABLE   DOWNLOADED_SHA256SUM_RESULT)
-        else()
-            message(FATAL_ERROR "neither `sha256sum` nor `shasum` found."
-                                "in terms of security, external libraries could not be downloaded."
-                                "please install at least one of them.")
-        endif()
+        message(STATUS "downloading completed. Unpacking...")
 
-        if(NOT ${DOWNLOADED_SHA256SUM_RESULT} EQUAL "0")
-            message(FATAL_ERROR "boost_1_67_0.tar.bz2 has invalid sha256sum.")
-        endif()
+        execute_process(COMMAND tar xf boost_1_69_0.tar.bz2
+            WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/extlib"
+            OUTPUT_QUIET ERROR_QUIET)
 
-        execute_process(COMMAND tar xf boost_1_67_0.tar.bz2
-            WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/extlib" OUTPUT_QUIET ERROR_QUIET)
-
+        include_directories(${PROJECT_SOURCE_DIR}/extlib/boost_1_69_0)
         message(STATUS "done.")
     endif()
-    include_directories(${PROJECT_SOURCE_DIR}/extlib/boost_1_67_0)
 endif()
 
 add_subdirectory(src)
