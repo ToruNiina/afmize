@@ -30,14 +30,15 @@ The content would be like this.
 # the default unit is: degree for angle, angstrom for length
 # you can also specify the unit explicitly
 # pm, angstrom, nm, um, mm are allowed
-file.input   = "example.pdb"
-file.output  = "output"
-probe.size   = {radius = "1.0nm", angle = 10.0}
-resolution.x = "1.0nm"
-resolution.y = "1.0nm"
-resolution.z = "0.64Å"
-range.x      = ["0.0nm", "100.0nm"]
-range.y      = ["0.0nm", "100.0nm"]
+file.input           = "example.pdb"
+file.output.basename = "output"
+file.output.formats  = ["csv", "json", "ppm", "svg"] # select from these 4 formats.
+probe.size           = {radius = "1.0nm", angle = 10.0}
+resolution.x         = "1.0nm"
+resolution.y         = "1.0nm"
+resolution.z         = "0.64Å"
+range.x              = ["0.0nm", "100.0nm"]
+range.y              = ["0.0nm", "100.0nm"]
 
 scale_bar.length = "5.0nm"
 
