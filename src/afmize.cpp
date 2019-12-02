@@ -464,10 +464,6 @@ int main(int argc, char** argv)
                 afmize::write_json(stg, outname);
             }
 
-            if(output_formats.ppm)
-            {
-            }
-
             if(std::isnan(cmap_min) || std::isnan(cmap_max))
             {
                 if(output_formats.ppm)
