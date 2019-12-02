@@ -68,6 +68,61 @@ Real collide_at(const system<Real>& sys, const default_probe<Real>& probe,
     return height - probe.radius;
 }
 
+struct output_format_flags
+{
+    output_format_flags() : csv(false), json(false), ppm(false), svg(false) {}
+
+    static output_format_flags
+    from_inputs(std::vector<std::string> inputs)
+    {
+        output_format_flags self;
+        for(const auto& format : inputs)
+        {
+            if(format == "csv")
+            {
+                set_flag(self.csv, format);
+            }
+            else if(format == "json")
+            {
+                set_flag(self.json, format);
+            }
+            else if(format == "ppm")
+            {
+                set_flag(self.ppm, format);
+            }
+            else if(format == "svg")
+            {
+                set_flag(self.svg, format);
+            }
+            else
+            {
+                std::cerr << "warning: file.output.formats contains an invalid flag \""
+                          << format << "\"\n";
+            }
+        }
+        return self;
+    }
+
+    static void
+    set_flag(bool& flag, const std::string& input)
+    {
+        if(flag)
+        {
+            std::cerr << "warning: file.output.formats contains duplicated flags \""
+                      << input << "\"\n";
+        }
+        else
+        {
+            flag = true;
+        }
+    }
+
+    bool csv;
+    bool json;
+    bool ppm;
+    bool svg;
+};
+
 template<typename Real>
 void write_json(const stage<Real>& stg, const std::string& out)
 {
@@ -275,7 +330,10 @@ int main(int argc, char** argv)
     const auto  reader = afmize::open_file<Real>(
             toml::find<std::string>(file, "input")
         );
-    const auto output = toml::find<std::string>(file, "output");
+    const auto& output = toml::find(file, "output");
+    const auto  output_basename = toml::find<std::string>(output, "basename");
+    const auto  output_formats = afmize::output_format_flags::from_inputs(
+            toml::find<std::vector<std::string>>(output, "formats"));
 
     std::cerr << "-- " << reader->size() << " snapshots are found\n";
 
@@ -387,7 +445,7 @@ int main(int argc, char** argv)
                 std::cerr << bar.format(stg.y_pixel() * stg.x_pixel());
             }
 
-            std::string outname(output);
+            std::string outname(output_basename);
             if(reader->size() != 1)
             {
                 std::ostringstream oss;
@@ -396,18 +454,38 @@ int main(int argc, char** argv)
                 outname += oss.str();
             }
 
-            afmize::write_csv (stg, outname);
-            afmize::write_json(stg, outname);
+            if(output_formats.csv)
+            {
+                afmize::write_csv (stg, outname);
+            }
+
+            if(output_formats.json)
+            {
+                afmize::write_json(stg, outname);
+            }
+
             if(std::isnan(cmap_min) || std::isnan(cmap_max))
             {
-                afmize::write_ppm (stg, outname);
-                afmize::write_svg (stg, outname, scale_bar_length);
+                if(output_formats.ppm)
+                {
+                    afmize::write_ppm (stg, outname);
+                }
+                if(output_formats.svg)
+                {
+                    afmize::write_svg (stg, outname, scale_bar_length);
+                }
             }
             else
             {
-                afmize::write_ppm(stg, outname, std::make_pair(cmap_min, cmap_max));
-                afmize::write_svg(stg, outname, scale_bar_length,
-                                  std::make_pair(cmap_min, cmap_max));
+                if(output_formats.ppm)
+                {
+                    afmize::write_ppm(stg, outname, std::make_pair(cmap_min, cmap_max));
+                }
+                if(output_formats.svg)
+                {
+                    afmize::write_svg(stg, outname, scale_bar_length,
+                                      std::make_pair(cmap_min, cmap_max));
+                }
             }
             ++index;
         }
