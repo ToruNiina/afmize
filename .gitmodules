@@ -1,9 +1,9 @@
-[submodule "extlib/toml"]
-	path = extlib/toml
-	url = https://github.com/ToruNiina/Boost.toml.git
 [submodule "extlib/pnm"]
 	path = extlib/pnm
 	url = https://github.com/ToruNiina/pnm.git
 [submodule "extlib/mave"]
 	path = extlib/mave
 	url = https://github.com/ToruNiina/mave.git
+[submodule "extlib/toml11"]
+	path = extlib/toml11
+	url = https://github.com/ToruNiina/toml11.git

@@ -10,7 +10,7 @@ making pseudo AFM images from structure file.
 ## Usage
 
 ```sh
-$ afmize example.toml # generates image file
+$ afmize example.toml
 ```
 
 ### Configurations
@@ -30,16 +30,20 @@ The content would be like this.
 # the default unit is: degree for angle, angstrom for length
 # you can also specify the unit explicitly
 # pm, angstrom, nm, um, mm are allowed
-file.input   = "example.pdb"
-file.output  = "output"
-probe.size   = {radius = "1.0nm", angle = 10.0}
-resolution.x = "1.0nm"
-resolution.y = "1.0nm"
-resolution.z = "0.64Å"
-range.x      = ["0.0nm", "100.0nm"]
-range.y      = ["0.0nm", "100.0nm"]
+file.input           = "example.pdb"
+file.output.basename = "output"
+file.output.formats  = ["csv", "json", "ppm", "svg"] # select from these 4 formats.
+probe.size           = {radius = "1.0nm", angle = 10.0}
+resolution.x         = "1.0nm"
+resolution.y         = "1.0nm"
+resolution.z         = "0.64Å"
+range.x              = ["0.0nm", "100.0nm"]
+range.y              = ["0.0nm", "100.0nm"]
 
 scale_bar.length = "5.0nm"
+
+colormap.min =  "0.0nm"
+colormap.max = "10.0nm"
 
 stage.position = "1.0Å" # z coordinate of stage position
 stage.align    = true   # if true, afmize moves the structure to make the bottom of the bounding box is equal to stage.position.
@@ -64,9 +68,9 @@ Use your favorite package managers (e.g. `apt`) to install them.
 - CMake
 - git
   - to download submodules
-- C++14 compliant compiler
-  - gcc 5.1 or later
-  - clang 3.4 or later
+- C++14 compliant compiler. tested with ...
+  - g++-7 or later
+  - clang++-6 or later
   - or others that fully support C++14 ISO standard.
 
 All other dependencies are managed by CMake script and git submodule.
@@ -74,7 +78,7 @@ All other dependencies are managed by CMake script and git submodule.
 ### Building
 
 ```sh
-$ git submodule update
+$ git submodule update --init
 $ mkdir build
 $ cd build
 $ cmake ..
@@ -88,6 +92,6 @@ After this, you will find the executable at `bin/` directory.
 
 This product is licensed under the terms of the [MIT License](LICENSE).
 
-- Copyright (c) 2018 Toru Niina
+- Copyright (c) 2018-2019 Toru Niina
 
 All rights reserved.
