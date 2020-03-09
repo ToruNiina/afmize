@@ -68,6 +68,29 @@ Real collide_at(const system<Real>& sys, const default_probe<Real>& probe,
     return height - probe.radius;
 }
 
+template<typename Real>
+Real smooth_at(const system<Real>& sys,
+               const mave::vector<Real, 3>& pos,
+               const Real bottom, const Real gamma, const Real sigma)
+{
+    const Real rgamma    = 1.0 / gamma;
+    const Real rsigma    = 1.0 / sigma;
+    const Real rsigma_sq = rsigma * rsigma;
+
+    Real expsum = std::exp(-bottom * rgamma);
+    for(const auto& p : sys.particles)
+    {
+        const auto dr = p.center - pos;
+
+        const auto dx_sq = dr[0] * dr[0];
+        const auto dy_sq = dr[1] * dr[1];
+
+        expsum += std::exp(-(dx_sq + dy_sq) * rsigma_sq +
+                            (p.radius + p.center[2] - bottom) * rgamma);
+    }
+    return gamma * std::log(expsum);
+}
+
 struct output_format_flags
 {
     output_format_flags() : csv(false), json(false), ppm(false), svg(false) {}
@@ -390,6 +413,23 @@ int main(int argc, char** argv)
     const auto cmap_max = afmize::read_as_angstrom<Real>(
         toml::find_or(cmap, "max", nan_v), "colormap.max");
 
+    // image generation method
+    const auto method = toml::find_or(config, "method", "rigid");
+    if(method != "rigid" && method != "smooth")
+    {
+        std::cerr << toml::format_error("[error] unknown method: " + method,
+            config, "here", {"expected one of the followings.",
+                "- \"rigid\" : well-known rigid body collidion based method (default)",
+                "- \"smooth\": smooth function approximation [T. Niina et al., JCTC (2020)]"
+            }) << std::endl;
+
+        return EXIT_FAILURE;
+    }
+    const auto sigma = afmize::read_as_angstrom<Real>(
+        toml::find_or(config, "sigma", nan_v), "sigma");
+    const auto gamma = afmize::read_as_angstrom<Real>(
+        toml::find_or(config, "gamma", nan_v), "gamma");
+
     afmize::progress_bar<70> bar(
         (reader->size() == 1) ? stg.x_pixel() * stg.y_pixel() : reader->size()
         );
@@ -430,10 +470,22 @@ int main(int argc, char** argv)
                     probe.apex    = stg.position_at(i, j);
                     probe.apex[2] = initial_z;
 
-                    stg(i, j) = afmize::descretize(
-                        afmize::collide_at(sys, probe, bottom),
-                        stg.z_resolution(),
-                        bottom);
+                    if(method == "rigid")
+                    {
+                        stg(i, j) = afmize::descretize(
+                            afmize::collide_at(sys, probe, bottom),
+                            stg.z_resolution(),
+                            bottom);
+                    }
+                    else if(method == "smooth")
+                    {
+                        stg(i, j) = afmize::smooth_at(
+                                sys, probe.apex, bottom, gamma, sigma);
+                    }
+                    else
+                    {
+                        assert(false); // never reach here
+                    }
 
                     if(reader->size() == 1)
                     {
