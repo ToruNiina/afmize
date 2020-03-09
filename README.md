@@ -48,6 +48,10 @@ colormap.max = "10.0nm"
 stage.position = "1.0Å" # z coordinate of stage position
 stage.align    = true   # if true, afmize moves the structure to make the bottom of the bounding box is equal to stage.position.
 
+method = "rigid" # or "smooth". By default, "rigid"
+sigma = "0.2nm" # optional. required if method == "smooth".
+gamma = "0.1nm" # ditto.
+
 radii.atom.H = "0.1angstrom"  # radius of all the elements
 radii.residue.ARG.CA = "3.0Å" # radius for a specific pair of residue and atom.
 # radii of the other atoms in the residue ARG will be the default values.
