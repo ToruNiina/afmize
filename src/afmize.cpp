@@ -1,3 +1,4 @@
+#define TOML11_COLORIZE_ERROR_MESSAGE
 #include <afmize/stage.hpp>
 #include <afmize/system.hpp>
 #include <afmize/colormap.hpp>
@@ -70,12 +71,14 @@ Real collide_at(const system<Real>& sys, const default_probe<Real>& probe,
 
 template<typename Real>
 Real smooth_at(const system<Real>& sys,
-               const mave::vector<Real, 3>& pos,
-               const Real bottom, const Real gamma, const Real sigma)
+               const mave::vector<Real, 3>& pos, const Real bottom,
+               const Real gamma, const Real sigma_x, const Real sigma_y)
 {
     const Real rgamma    = 1.0 / gamma;
-    const Real rsigma    = 1.0 / sigma;
-    const Real rsigma_sq = rsigma * rsigma;
+    const Real rsigma_x    = 1.0 / sigma_x;
+    const Real rsigma_x_sq = rsigma_x * rsigma_x;
+    const Real rsigma_y    = 1.0 / sigma_y;
+    const Real rsigma_y_sq = rsigma_y * rsigma_y;
 
     Real expsum = std::exp(-bottom * rgamma);
     for(const auto& p : sys.particles)
@@ -85,7 +88,7 @@ Real smooth_at(const system<Real>& sys,
         const auto dx_sq = dr[0] * dr[0];
         const auto dy_sq = dr[1] * dr[1];
 
-        expsum += std::exp(-(dx_sq + dy_sq) * rsigma_sq +
+        expsum += std::exp(-(dx_sq * rsigma_x_sq + dy_sq * rsigma_y_sq) +
                             (p.radius + p.center[2] - bottom) * rgamma);
     }
     return gamma * std::log(expsum);
@@ -321,15 +324,14 @@ int main(int argc, char** argv)
         for(const auto& kv : toml::find_or<toml::table>(radii, "atom", toml::table{}))
         {
             afmize::parameter<Real>::radius_atom[kv.first] =
-                afmize::read_as_angstrom<Real>(kv.second, "radii.atom");
+                afmize::read_as_angstrom<Real>(kv.second);
         }
         for(const auto& res : toml::find_or<toml::table>(radii, "residue", toml::table{}))
         {
             for(const auto& atm : res.second.as_table())
             {
                 afmize::parameter<Real>::radius_residue[res.first][atm.first] =
-                    afmize::read_as_angstrom<Real>(atm.second,
-                            "radii."s + res.first + "."s + atm.first);
+                    afmize::read_as_angstrom<Real>(atm.second);
             }
         }
     }
@@ -367,25 +369,24 @@ int main(int argc, char** argv)
     const auto range_x = toml::find<std::array<toml::value, 2>>(range, "x");
     const auto range_y = toml::find<std::array<toml::value, 2>>(range, "y");
     afmize::stage<Real> stg(
-        afmize::read_as_angstrom<Real>(toml::find(resolution, "x"), "resolution.x"),
-        afmize::read_as_angstrom<Real>(toml::find(resolution, "y"), "resolution.y"),
-        afmize::read_as_angstrom<Real>(toml::find(resolution, "z"), "resolution.z"),
-        std::make_pair(afmize::read_as_angstrom<Real>(range_x[0], "range_x"),
-                       afmize::read_as_angstrom<Real>(range_x[1], "range_x")),
-        std::make_pair(afmize::read_as_angstrom<Real>(range_y[0], "range_y"),
-                       afmize::read_as_angstrom<Real>(range_y[1], "range_y"))
+        afmize::read_as_angstrom<Real>(toml::find(resolution, "x")),
+        afmize::read_as_angstrom<Real>(toml::find(resolution, "y")),
+        afmize::read_as_angstrom<Real>(toml::find(resolution, "z")),
+        std::make_pair(afmize::read_as_angstrom<Real>(range_x[0]),
+                       afmize::read_as_angstrom<Real>(range_x[1])),
+        std::make_pair(afmize::read_as_angstrom<Real>(range_y[0]),
+                       afmize::read_as_angstrom<Real>(range_y[1]))
     );
 
     const auto scale_bar_length = afmize::read_as_angstrom<Real>(
-        toml::find(config, "scale_bar", "length"), "scale_bar.length");
+        toml::find(config, "scale_bar", "length"));
 
     // probe size information
     const auto& probe_tab  = toml::find(config, "probe");
     const auto& probe_size = toml::find(probe_tab, "size");
     afmize::default_probe<Real> probe{
             toml::find<Real>(probe_size, "angle") * deg_to_rad,
-            afmize::read_as_angstrom<Real>(
-                toml::find(probe_size, "radius"), "probe.size.radius"),
+            afmize::read_as_angstrom<Real>(toml::find(probe_size, "radius")),
             mave::vector<Real, 3>{0, 0, 0}
         };
 
@@ -394,7 +395,7 @@ int main(int argc, char** argv)
     const auto& stage_tab  = toml::find_or(config, "stage", toml::value{});
     const bool stage_align = toml::find_or<bool>(stage_tab, "align", false);
     const Real stage_position = afmize::read_as_angstrom<Real>(
-        toml::find_or(stage_tab, "position", nan_v), "stage.position");
+        toml::find_or(stage_tab, "position", nan_v));
 
     if(stage_align && std::isnan(stage_position))
     {
@@ -409,9 +410,9 @@ int main(int argc, char** argv)
     // color range information ...
     const auto& cmap = toml::find_or(config, "colormap", toml::value{});
     const auto cmap_min = afmize::read_as_angstrom<Real>(
-        toml::find_or(cmap, "min", nan_v), "colormap.min");
+        toml::find_or(cmap, "min", nan_v));
     const auto cmap_max = afmize::read_as_angstrom<Real>(
-        toml::find_or(cmap, "max", nan_v), "colormap.max");
+        toml::find_or(cmap, "max", nan_v));
 
     // image generation method
     const auto method = toml::find_or(config, "method", "rigid");
@@ -425,10 +426,33 @@ int main(int argc, char** argv)
 
         return EXIT_FAILURE;
     }
-    const auto sigma = afmize::read_as_angstrom<Real>(
-        toml::find_or(config, "sigma", nan_v), "sigma");
+
+    const auto sigma_x_v =
+        config.contains("sigma_x") ? toml::find(config, "sigma_x") :
+        config.contains("sigma")   ? toml::find(config, "sigma")   : nan_v;
+    const auto sigma_y_v =
+        config.contains("sigma_y") ? toml::find(config, "sigma_y") :
+        config.contains("sigma")   ? toml::find(config, "sigma")   : nan_v;
+
+    if(config.contains("sigma") && config.contains("sigma_x"))
+    {
+        std::cout << toml::format_error(
+                "when \"sigma_x\" is defined, \"sigma\" will be ignored.",
+                config.at("sigma_x"), "sigma for x is defined here",
+                config.at("sigma"), "the default sigma will be ignored");
+    }
+    if(config.contains("sigma") && config.contains("sigma_y"))
+    {
+        std::cout << toml::format_error(
+                "when \"sigma_y\" is defined, \"sigma\" will be ignored.",
+                config.at("sigma_y"), "sigma for y is defined here",
+                config.at("sigma"), "the default sigma will be ignored");
+    }
+
+    const auto sigma_x = afmize::read_as_angstrom<Real>(sigma_x_v);
+    const auto sigma_y = afmize::read_as_angstrom<Real>(sigma_y_v);
     const auto gamma = afmize::read_as_angstrom<Real>(
-        toml::find_or(config, "gamma", nan_v), "gamma");
+        toml::find_or(config, "gamma", nan_v));
 
     afmize::progress_bar<70> bar(
         (reader->size() == 1) ? stg.x_pixel() * stg.y_pixel() : reader->size()
@@ -479,8 +503,8 @@ int main(int argc, char** argv)
                     }
                     else if(method == "smooth")
                     {
-                        stg(i, j) = afmize::smooth_at(
-                                sys, probe.apex, bottom, gamma, sigma);
+                        stg(i, j) = afmize::smooth_at(sys, probe.apex, bottom,
+                                                      gamma, sigma_x, sigma_y);
                     }
                     else
                     {
