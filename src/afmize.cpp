@@ -270,11 +270,18 @@ void write_svg(const stage<Real>& stg, const std::string& out,
 
     if(scale_bar != Real(0.0))
     {
+        const auto sb_width  = scale_bar;
+        const auto sb_height = std::max(stg.y_resolution() * 0.5, img_height * 0.01);
+
+        const auto buf_x = img_width  * 0.05;
+        const auto buf_y = img_height * 0.05;
+
+        const auto sb_left = img_width  - buf_x - sb_width;
+        const auto sb_up   = img_height - buf_y - sb_height;
+
         // scale bar
-        svg << "<rect x=\"" << img_width  - stg.x_resolution() - scale_bar
-            << "\" y=\""    << img_height - stg.y_resolution()
-            << "\" width=\""  << scale_bar
-            << "\" height=\"" << stg.y_resolution() * 0.5
+        svg << "<rect x=\""   << sb_left  << "\" y=\""      << sb_up
+            << "\" width=\""  << sb_width << "\" height=\"" << sb_height
             << "\" style=\"fill:white;stroke:none\"/>\n";
     }
     svg << "</svg>\n";
