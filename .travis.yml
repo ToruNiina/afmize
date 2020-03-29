@@ -11,8 +11,10 @@ matrix:
       apt:
         sources:
         - ubuntu-toolchain-r-test
+        - sourceline: 'ppa:mhier/libboost-latest'
         packages:
         - g++-7
+        - boost1.70
   - os: linux
     language: cpp
     compiler: clang
@@ -21,9 +23,11 @@ matrix:
       apt:
         sources:
         - ubuntu-toolchain-r-test
+        - sourceline: 'ppa:mhier/libboost-latest'
         - llvm-toolchain-trusty-6.0
         packages:
         - clang-6.0
+        - boost1.70
   - os: osx
     language: cpp
     compiler: clang
@@ -37,12 +41,11 @@ script:
     tar xf cmake-3.11.2-Linux-x86_64.tar.gz -C cmake --strip-components=1
     export PATH=${TRAVIS_BUILD_DIR}/cmake/bin:${PATH}
   else
-    brew install cmake
-    brew upgrade cmake
+    brew upgrade boost cmake
   fi
 - cmake --version
 - mkdir build
 - cd build
-- cmake -DCMAKE_CXX_COMPILER=$COMPILER -DCMAKE_CXX_STANDARD=$CXX_STANDARD ..
+- cmake -DCMAKE_CXX_COMPILER=$COMPILER -DCMAKE_CXX_STANDARD=$CXX_STANDARD -DFIND_BOOST=ON ..
 - make
 - ctest --output-on-failure

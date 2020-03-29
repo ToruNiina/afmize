@@ -7,7 +7,9 @@ execute_process(COMMAND git submodule update --init --recursive
 include_directories(${PROJECT_SOURCE_DIR}/extlib/toml)
 include_directories(${PROJECT_SOURCE_DIR})
 
-if(BOOST_ROOT)
+option(FIND_BOOST "finds boost > 1.69.0" OFF)
+
+if(BOOST_ROOT OR FIND_BOOST)
     find_package(Boost 1.69.0 REQUIRED)
     include_directories(${Boost_INCLUDE_DIRS})
 else()
@@ -17,8 +19,8 @@ else()
     else()
         message(STATUS "Boost library not found. Donwloading...")
 
-        file(DOWNLOAD https://dl.bintray.com/boostorg/release/1.69.0/source/boost_1_69_0.tar.bz2
-            ${PROJECT_SOURCE_DIR}/extlib/boost_1_69_0.tar.bz2
+        file(DOWNLOAD https://dl.bintray.com/boostorg/release/1.72.0/source/boost_1_72_0.tar.gz
+            ${PROJECT_SOURCE_DIR}/extlib/boost_1_72_0.tar.bz2
             EXPECTED_HASH SHA256=8f32d4617390d1c2d16f26a27ab60d97807b35440d45891fa340fc2648b04406
             STATUS MJOLNIR_DOWNLOAD_BOOST_STATUS)
 
