@@ -268,13 +268,15 @@ void write_svg(const stage<Real>& stg, const std::string& out,
         }
     }
 
-    // scale bar
-    svg << "<rect x=\"" << img_width  - stg.x_resolution() - scale_bar
-        << "\" y=\""    << img_height - stg.y_resolution()
-        << "\" width=\""  << scale_bar
-        << "\" height=\"" << stg.y_resolution() * 0.5
-        << "\" style=\"fill:white;stroke:none\"/>\n";
-
+    if(scale_bar != Real(0.0))
+    {
+        // scale bar
+        svg << "<rect x=\"" << img_width  - stg.x_resolution() - scale_bar
+            << "\" y=\""    << img_height - stg.y_resolution()
+            << "\" width=\""  << scale_bar
+            << "\" height=\"" << stg.y_resolution() * 0.5
+            << "\" style=\"fill:white;stroke:none\"/>\n";
+    }
     svg << "</svg>\n";
     return;
 }
@@ -379,7 +381,7 @@ int main(int argc, char** argv)
     );
 
     const auto scale_bar_length = afmize::read_as_angstrom<Real>(
-        toml::find(config, "scale_bar", "length"));
+        toml::find_or<toml::value>(config, "scale_bar", toml::value{{"length", toml::value(0.0)}}).at("length"));
 
     // probe size information
     const auto& probe_tab  = toml::find(config, "probe");
