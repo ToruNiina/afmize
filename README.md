@@ -62,6 +62,7 @@ You can explicitly specify `"nm"`, `"pm"`, and `"angstrom"`.
 #### `probe` table
 
 In the `"rigid"` method, the AFM cantilever tip will be modeled as a hemisphere on top of truncated cone.
+If you specify `"smooth"` method, the value will be ignored.
 
 - `probe.size.radius`: String or Floating
   - The radius of the probe. 
@@ -109,9 +110,18 @@ If you got some error like `unknown atom`, specify its radius in this table.
   - Replace `[name-of-residue]` by your residue name.
   - All the atoms in the residue `[name-of-residue]` will have the same radius you specified here.
 
+#### `scale_bar` table
+
+Scale bar option is only available with `.svg` output format.
+If you specify other format, the value will be ignored.
+
+- `length`: String or Floating
+  - The length of the scale bar.
+
 #### `sigma` and `gamma`
 
 Parameters `sigma` and `gamma` that are used in the `"smooth"` method.
+If you specify `"rigid"` method, the value will be ignored.
 
 - `sigma`: String or Floating
   - The value of `sigma` in the formula described in the paper.
