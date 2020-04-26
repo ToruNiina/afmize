@@ -105,7 +105,7 @@ If you got some error like `unknown atom`, specify its radius in this table.
 
 - `radii.atom.[name-of-atom]`: String or Floating
   - Replace `[name-of-atom]` by your atom name.
-  - The atom `[name-of-atom]` will have the radius.
+  - The atom `[name-of-atom]` will have the radius you specified here.
 - `radii.residue.[name-of-residue]`: String or Floating
   - Replace `[name-of-residue]` by your residue name.
   - All the atoms in the residue `[name-of-residue]` will have the same radius you specified here.
@@ -134,10 +134,10 @@ If you specify `"rigid"` method, the value will be ignored.
 
 Use your favorite package managers (e.g. `apt`) to install them.
 
-- CMake
+- CMake (> 3.2)
   - to generate Makefile.
 - git
-  - to download submodules
+  - to download submodules.
 - C++14 compliant compiler. tested with ...
   - g++-7 or later
   - clang++-6 or later
