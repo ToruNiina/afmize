@@ -5,63 +5,118 @@ afmize
 [![license](https://img.shields.io/github/license/ToruNiina/afmize.svg?style=flat)](https://github.com/ToruNiina/afmize/blob/master/LICENSE)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.2556445.svg)](https://doi.org/10.5281/zenodo.2556445)
 
-making pseudo AFM images from structure file.
+Make pseudo AFM images from a structure file.
 
 ## Usage
+
+All the configurations are written in `.toml` file.
+No command-line option is available.
 
 ```sh
 $ afmize example.toml
 ```
 
-### Configurations
+## Configuration
 
 It uses [toml format](https://github.com/toml-lang/toml) as a config file format.
 For more information about the format, see [the spec of toml-v0.5.0](https://github.com/toml-lang/toml/blob/master/versions/en/toml-v0.5.0.md).
 
-You can change...
-- probe size
-- radii of atoms
-- x, y, and z resolutions
-
-The content would be like this.
+### Example file
 
 ```toml
-# toml format v0.5.0
-# the default unit is: degree for angle, angstrom for length
-# you can also specify the unit explicitly
-# pm, angstrom, nm, um, mm are allowed
 file.input           = "example.pdb"
 file.output.basename = "output"
-file.output.formats  = ["csv", "json", "ppm", "svg"] # select from these 4 formats.
+file.output.formats  = ["csv", "json", "ppm", "svg"]
 probe.size           = {radius = "1.0nm", angle = 10.0}
 resolution.x         = "1.0nm"
 resolution.y         = "1.0nm"
-resolution.z         = "0.64Å"
+resolution.z         = "0.64angstrom"
 range.x              = ["0.0nm", "100.0nm"]
 range.y              = ["0.0nm", "100.0nm"]
-
-scale_bar.length = "5.0nm"
-
-colormap.min =  "0.0nm"
-colormap.max = "10.0nm"
-
-stage.position = "1.0Å" # z coordinate of stage position
-stage.align    = true   # if true, afmize moves the structure to make the bottom of the bounding box is equal to stage.position.
-
-method = "rigid" # or "smooth". By default, "rigid"
-sigma = "0.2nm" # optional. required if method == "smooth".
-gamma = "0.1nm" # ditto.
-
-radii.atom.H = "0.1angstrom"  # radius of all the elements
-radii.residue.ARG.CA = "3.0Å" # radius for a specific pair of residue and atom.
-# radii of the other atoms in the residue ARG will be the default values.
+scale_bar.length     = "5.0nm"
+stage.align          = true
 ```
 
-### Supported file formats
+### Reference
 
-- xyz
-- pdb
-  - note: it may fail reading pdb files that does not conform [wwPDB 3.3](http://www.wwpdb.org/documentation/file-format-content/format33/sect9.html#ATOM).
+Length unit is angstrom by default.
+You can explicitly specify `"nm"`, `"pm"`, and `"angstrom"`.
+
+#### `file` table
+
+- `file.input`: String
+  - An input structure. `.pdb` or `.xyz` are available.
+  - note that it may fail reading pdb files that does not conform [wwPDB 3.3](http://www.wwpdb.org/documentation/file-format-content/format33/sect9.html#ATOM).
+- `file.output.basename`: String
+  - An output filename. An extension will be added.
+- `file.output.formats`: Array of Strings
+  - An output format. One or more formats can be selected from `["csv", "json", "ppm", "svg"]`.
+
+#### `method`
+
+- `method`: String, `"rigid"` or `"smooth"`.
+  - By default, `"rigid"`.
+  - `"rigid"` is a collision-detection based method.
+  - `"smooth"` is a method introduced in the [paper](https://pubs.acs.org/doi/10.1021/acs.jctc.9b00991)
+
+#### `probe` table
+
+In the `"rigid"` method, the AFM cantilever tip will be modeled as a hemisphere on top of truncated cone.
+
+- `probe.size.radius`: String or Floating
+  - The radius of the probe. 
+- `probe.size.angle`: Floating
+  - The angle of the cone. The unit is degree, not radian.
+
+#### `resolution` table
+
+- `resolution.x`: String or Floating
+  - The resolution in x direction. The same as the pixel width.
+- `resolution.y`: String or Floating
+  - The resolution in y direction. The same as the pixel height.
+- `resolution.z`: String or Floating
+  - The resolution in z direction. The output height will be rounded using this.
+
+#### `range` table
+
+- `range.x`: Array of Strings or Floatings
+  - The minimum and maximum coordinate of scanning range in x direction.
+  - Atoms that exceed this boundary will not be scanned.
+- `range.y`: Array of Strings or Floatings
+  - The minimum and maximum coordinate of scanning range in y direction.
+  - Atoms that exceed this boundary will not be scanned.
+
+#### `stage` table
+
+- `stage.position`: String or Floating
+  - The stage position in Z direction.
+  - By default, `0`.
+- `stage.align`: Boolean
+  - If `true`, the position in Z axis of the structure will be aligned to `0`.
+  - Otherwise, the position will be kept intact.
+  - By default, `true`.
+
+#### `radii` table
+
+You can change the atom radius in this table.
+By defualt, only a few number of atoms are supported.
+If you got some error like `unknown atom`, specify its radius in this table.
+
+- `radii.atom.[name-of-atom]`: String or Floating
+  - Replace `[name-of-atom]` by your atom name.
+  - The atom `[name-of-atom]` will have the radius.
+- `radii.residue.[name-of-residue]`: String or Floating
+  - Replace `[name-of-residue]` by your residue name.
+  - All the atoms in the residue `[name-of-residue]` will have the same radius you specified here.
+
+#### `sigma` and `gamma`
+
+Parameters `sigma` and `gamma` that are used in the `"smooth"` method.
+
+- `sigma`: String or Floating
+  - The value of `sigma` in the formula described in the paper.
+- `gamma`: String or Floating
+  - The value of `gamma` in the formula described in the paper.
 
 ## Installation
 
@@ -70,6 +125,7 @@ radii.residue.ARG.CA = "3.0Å" # radius for a specific pair of residue and atom.
 Use your favorite package managers (e.g. `apt`) to install them.
 
 - CMake
+  - to generate Makefile.
 - git
   - to download submodules
 - C++14 compliant compiler. tested with ...
@@ -92,10 +148,26 @@ $ make test # optional
 
 After this, you will find the executable at `bin/` directory.
 
+## Citation
+
+Please cite the following.
+
+- [Toru Niina, Sotaro Fuchigami, & Shoji Takada (2020, January 7). Flexible Fitting of Biomolecular Structures to Atomic Force Microscopy Images via Biased Molecular Simulations. JCTC. doi:10.1021/acs.jctc.9b00991](https://doi.org/10.1021/acs.jctc.9b00991)
+- [Toru Niina, & Suguru Kato. (2019, August 7). ToruNiina/afmize: version 1.1.0 (Version v1.1.0). Zenodo. doi:10.5281/zenodo.2556444](https://doi.org/10.5281/zenodo.2556444)
+
+## Contact
+
+If you have any question, please feel free to make an [issue](https://github.com/ToruNiina/afmize/issues) to this repository.
+
+Issues are public. Everyone can share information about problems and save time.
+
+If you want to share a sensitive data with the repository owner to solve the problem,
+you can e-mail to [me](https://github.com/ToruNiina).
+
 ## Licensing Terms
 
 This product is licensed under the terms of the [MIT License](LICENSE).
 
-- Copyright (c) 2018-2019 Toru Niina
+- Copyright (c) 2018-2020 Toru Niina
 
 All rights reserved.
