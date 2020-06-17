@@ -51,7 +51,7 @@ Pixel color_afmhot(const Real value, const Real min, const Real max)
         const Real u = v - Real(0.5) - sqrt2;
         if     (u < Real(0.0)) {return Pixel(255, 255, 127);}
         else if(Real(0.5) < u) {return Pixel(255, 255, 255);}
-        const std::uint8_t B = std::floor((Real(0.5) + u * 256));
+        const std::uint8_t B = std::floor((Real(0.5) + u) * 256);
         return Pixel(255, 255, B);
     }
 }
