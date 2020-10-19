@@ -4,8 +4,8 @@ project(afmize)
 
 execute_process(COMMAND git submodule update --init --recursive
                 WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
-include_directories(${PROJECT_SOURCE_DIR}/extlib/toml)
-include_directories(${PROJECT_SOURCE_DIR})
+include_directories(${PROJECT_SOURCE_DIR}/extlib)
+include_directories(${PROJECT_SOURCE_DIR}/include)
 
 option(FIND_BOOST "finds boost >= 1.69.0" OFF)
 

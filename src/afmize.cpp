@@ -6,7 +6,6 @@
 #include <afmize/pdb_reader.hpp>
 #include <afmize/input_utility.hpp>
 #include <afmize/progress_bar.hpp>
-#include <extlib/pnm/pnm.hpp>
 #include <limits>
 #include <string>
 

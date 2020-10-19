@@ -1,6 +1,6 @@
 #ifndef AFMIZE_SHAPES_HPP
 #define AFMIZE_SHAPES_HPP
-#include <extlib/mave/mave/mave.hpp>
+#include <mave/mave/mave.hpp>
 
 namespace afmize
 {

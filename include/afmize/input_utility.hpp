@@ -3,7 +3,7 @@
 #include <type_traits>
 #include <utility>
 #include <stdexcept>
-#include <extlib/toml11/toml.hpp>
+#include <toml11/toml.hpp>
 
 namespace afmize
 {
