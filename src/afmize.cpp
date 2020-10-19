@@ -35,7 +35,7 @@ open_file(const std::string& fname)
 }
 
 template<typename Real>
-Real descretize(const Real x, const Real resolution, const Real min_val)
+Real discretize(const Real x, const Real resolution, const Real min_val)
 {
     return std::round((x - min_val) / resolution) * resolution + min_val;
 }
@@ -504,7 +504,7 @@ int main(int argc, char** argv)
 
                     if(method == "rigid")
                     {
-                        stg(i, j) = afmize::descretize(
+                        stg(i, j) = afmize::discretize(
                             afmize::collide_at(sys, probe, bottom),
                             stg.z_resolution(),
                             bottom);
