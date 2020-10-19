@@ -16,7 +16,7 @@ read_as_angstrom(const toml::value& v)
 
     const std::vector<std::string> hints{ // for error message.
             "\"1.0nm\"                : 1.0 nano meter.",
-            "\"1.0Å\" or \"1.0angstrom\": 1.0 angstrom.",
+            "\"1.0\xC3\x85\", \"1.0\xE2\x84\xAB\", or \"1.0angstrom\": 1.0 angstrom.",
             "\"1.0pm\"                : 1.0 pico meter.",
             "1.0 (floating)         : 1.0 angstrom.",
             "1   (integer)          : 1.0 angstrom."
@@ -47,10 +47,10 @@ read_as_angstrom(const toml::value& v)
     {
         return static_cast<T>(val * 0.01);
     }
-    if(unit == "angst" || unit == "angstrom" || unit == u8"Å" || unit == u8"Å")
+    if(unit == "angst" || unit == "angstrom" || unit == "\xC3\x85" || unit == "\xE2\x84\xAB")
     {
-        // left is U+212B "angstrom",
-        // right is U+00C5 "latin capical letter A with ring above".
+        // left is U+00C5 "latin capical letter A with ring above".
+        // right is U+212B "angstrom",
         return static_cast<T>(val);
     }
     else if(unit == "nm")
