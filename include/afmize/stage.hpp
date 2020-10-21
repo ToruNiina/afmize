@@ -8,6 +8,9 @@
 namespace afmize
 {
 
+//
+// Stage is a map from (x, y) to z.
+//
 template<typename Real>
 struct stage
 {
