@@ -130,6 +130,9 @@ If you specify `"rigid"` method, the value will be ignored.
 
 ## Installation
 
+First, clone this repository via `git`. Do not download auto-generated zip or tar
+file that does not include submodule information.
+
 ### Prerequisites
 
 Use your favorite package managers (e.g. `apt`) to install them.
@@ -148,6 +151,8 @@ All other dependencies are managed by CMake script and git submodule.
 ### Building
 
 ```sh
+$ git clone https://github.com/ToruNiina/afmize.git
+$ cd afmize
 $ git submodule update --init
 $ mkdir build
 $ cd build
