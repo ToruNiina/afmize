@@ -9,7 +9,7 @@ namespace afmize
 template<typename Real>
 struct system
 {
-    system(std::vector<sphere<Real>> mol)
+    explicit system(std::vector<sphere<Real>> mol)
         : particles(std::move(mol))
     {
         this->bounding_box = make_aabb(particles.front());
@@ -24,9 +24,6 @@ struct system
     aabb<Real>                bounding_box;
     std::vector<sphere<Real>> particles;
 };
-
-
-
 
 } // afmize
 #endif // AFMIZE_SYSTEM_HPP
