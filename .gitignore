@@ -1,4 +1,8 @@
+bin/*
 build/*
+data/*
+extlib/boost_1_72_0/*
+extlib/*.tar.gz
 *csv
 *json
 *ppm
