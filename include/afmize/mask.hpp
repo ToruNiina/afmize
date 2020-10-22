@@ -11,10 +11,27 @@ namespace afmize
 template<typename Real>
 struct mask_nothing
 {
-    bool operator()(const std::size_t, const std::size_t) const noexcept
+    explicit mask_nothing(const stage<Real>& stage_info)
+        : x_lower_(0), y_lower_(0),
+          x_upper_(stage_info.x_pixel()), y_upper_(stage_info.y_pixel())
+    {}
+
+    constexpr bool operator()(const std::size_t, const std::size_t) const noexcept
     {
         return false; // nothing is masked.
     }
+
+    std::size_t lower_bounding_x() const noexcept {return x_lower_;}
+    std::size_t lower_bounding_y() const noexcept {return y_lower_;}
+    std::size_t upper_bounding_x() const noexcept {return x_upper_;}
+    std::size_t upper_bounding_y() const noexcept {return y_upper_;}
+
+  private:
+
+    std::size_t x_lower_;
+    std::size_t x_upper_;
+    std::size_t y_lower_;
+    std::size_t y_upper_;
 };
 
 template<typename Real>
@@ -43,6 +60,11 @@ struct mask_by_rectangle
         return (x_lower_ <= x && x <= x_upper_) &&
                (y_lower_ <= y && y <= y_upper_);
     }
+
+    std::size_t lower_bounding_x() const noexcept {return x_lower_;}
+    std::size_t lower_bounding_y() const noexcept {return y_lower_;}
+    std::size_t upper_bounding_x() const noexcept {return x_upper_;}
+    std::size_t upper_bounding_y() const noexcept {return y_upper_;}
 
   private:
 
@@ -104,6 +126,11 @@ struct mask_by_circle
 
         return dist_sq <= radius_sq_;
     }
+
+    std::size_t lower_bounding_x() const noexcept {return bb_x_lower_;}
+    std::size_t lower_bounding_y() const noexcept {return bb_y_lower_;}
+    std::size_t upper_bounding_x() const noexcept {return bb_x_upper_;}
+    std::size_t upper_bounding_y() const noexcept {return bb_y_upper_;}
 
   private:
 
