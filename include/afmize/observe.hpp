@@ -1,6 +1,6 @@
 #ifndef AFMIZE_OBSERVE_HPP
 #define AFMIZE_OBSERVE_HPP
-#include "shape.hpp"
+#include "shapes.hpp"
 #include "system.hpp"
 #include "stage.hpp"
 
@@ -69,9 +69,10 @@ Real smooth_at(const system<Real>& sys,
 template<typename Real, bool Descritize = true>
 struct rigid_observer
 {
-    void operator()(stage<Real>& stg, const systme<Real>& sys,
+    void operator()(stage<Real>& stg, const system<Real>& sys,
                     const Real bottom)
     {
+        const Real initial_z = sys.bounding_box.upper[2] + probe.radius;
         for(std::size_t j=0; j<stg.y_pixel(); ++j)
         {
             for(std::size_t i=0; i<stg.x_pixel(); ++i)
