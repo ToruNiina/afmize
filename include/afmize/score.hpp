@@ -6,9 +6,12 @@
 namespace afmize
 {
 
-struct score_cosine_similarity_t
+template<typename Real>
+struct score_negative_cosine_similarity_t
 {
-    template<typename Real, typename Mask>
+    Real k; // modulating coefficient
+
+    template<typename Mask>
     Real operator()(const stage<Real>& lhs, const stage<Real>& rhs, const Mask& mask) const
     {
         Real numer  = 0;
@@ -30,14 +33,16 @@ struct score_cosine_similarity_t
                 denom2 += r * r;
             }
         }
-        return numer / (denom1 * denom2);
+        return k * (1.0 - numer / (denom1 * denom2));
     }
 };
 
-
+template<typename Real>
 struct score_root_mean_squared_deviation_t
 {
-    template<typename Real, typename Mask>
+    Real k; // modulating coefficient
+
+    template<typename Mask>
     Real operator()(const stage<Real>& lhs, const stage<Real>& rhs, const Mask& mask) const
     {
         std::uint64_t N = 0;
@@ -57,7 +62,7 @@ struct score_root_mean_squared_deviation_t
                 N  += 1;
             }
         }
-        return std::sqrt(sd / static_cast<Real>(N));
+        return k * std::sqrt(sd / static_cast<Real>(N));
     }
 };
 
