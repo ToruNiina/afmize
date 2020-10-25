@@ -11,7 +11,7 @@ namespace afmize
 template<typename Real>
 struct mask_nothing
 {
-    explicit mask_nothing(const stage<Real>& stage_info)
+    explicit mask_nothing(const stage<Real>& stage_info, const system<Real>&)
         : x_lower_(0), y_lower_(0),
           x_upper_(stage_info.x_pixel()), y_upper_(stage_info.y_pixel())
     {}
@@ -37,6 +37,12 @@ struct mask_nothing
 template<typename Real>
 struct mask_by_rectangle
 {
+    mask_by_rectangle(const stage<Real>& stage_info, const system<Real>& mol)
+        : mask_by_rectangle(stage_info,
+                mol.bounding_box.lower[0], mol.bounding_box.upper[0],
+                mol.bounding_box.lower[1], mol.bounding_box.upper[1])
+    {}
+
     mask_by_rectangle(const stage<Real>& stage_info,
             const Real x_lower, const Real x_upper,
             const Real y_lower, const Real y_upper)
@@ -77,6 +83,15 @@ struct mask_by_rectangle
 template<typename Real>
 struct mask_by_circle
 {
+    mask_by_rectangle(const stage<Real>& stage_info, const system<Real>& mol)
+        : mask_by_rectangle(stage_info,
+            make_bounding_sphere_centered_at_geometric_center(mol.particles))
+    {}
+
+    mask_by_rectangle(const stage<Real>& stage_info, const sphere<Real>& sph)
+        : mask_by_rectangle(stage_info, sph.center[0], sph.center[1], sph.radius)
+    {}
+
     mask_by_circle(const stage<Real>& stage_info,
                    const Real x_center, const Real y_center, const Real radius)
     : x_reso_ (stage_info.x_resolution()),  y_reso_ (stage_info.y_resolution()),
