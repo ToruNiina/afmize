@@ -58,6 +58,24 @@ aabb<Real> merge_aabb(const aabb<Real>& lhs, const aabb<Real>& rhs) noexcept
     };
 }
 
+template<typename Real, typename Alloc>
+aabb<Real> make_bounding_box(
+        const std::vector<sphere<Real>, Alloc>& particles)
+{
+    if(particles.empty())
+    {
+        return aabb<Real>{mave::vector<Real, 3>{0.0, 0.0, 0.0},
+                          mave::vector<Real, 3>{0.0, 0.0, 0.0}};
+    }
+
+    aabb<Real> bb = make_aabb(particles.front());
+    for(const auto& p : particles)
+    {
+        bb = merge_aabb(bb, make_aabb(p))
+    }
+    return bb;
+}
+
 // ----------------------------------------------------------------------------
 // "bounding" sphere.
 // XXX Note that the center is fixed at the geometric center. It might decrease
