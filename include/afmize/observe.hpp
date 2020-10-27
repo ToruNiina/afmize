@@ -1,5 +1,6 @@
 #ifndef AFMIZE_OBSERVE_HPP
 #define AFMIZE_OBSERVE_HPP
+#include "collision.hpp"
 #include "shapes.hpp"
 #include "system.hpp"
 #include "stage.hpp"
@@ -17,6 +18,8 @@ template<typename Real>
 Real collide_at(const system<Real>& sys, const default_probe<Real>& probe,
                 const Real bottom)
 {
+    // TODO: speedup
+    //
     // the point at which the probe collides with the stage
     Real height = bottom + probe.radius;
     for(const auto& sph : sys.particles)
@@ -66,11 +69,20 @@ Real smooth_at(const system<Real>& sys,
     return gamma * std::log(expsum);
 }
 
-template<typename Real, bool Descritize = true>
-struct rigid_observer
+template<typename Real>
+struct ObserverBase
 {
-    void operator()(stage<Real>& stg, const system<Real>& sys,
-                    const Real bottom)
+    virtual ~ObserverBase() = default;
+    virtual void observe(stage<Real>&, const system<Real>&, const Real) = 0;
+};
+
+template<typename Real, bool Descritize>
+struct RigidObserver: public ObserverBase<Real>
+{
+    explicit RigidObserver(default_probe<Real> p): probe(std::move(p)) {}
+    ~RigidObserver() override = default;
+
+    void observe(stage<Real>& stg, const system<Real>& sys, const Real bottom) override
     {
         const Real initial_z = sys.bounding_box.upper[2] + probe.radius;
         for(std::size_t j=0; j<stg.y_pixel(); ++j)
@@ -94,7 +106,6 @@ struct rigid_observer
     }
     default_probe<Real> probe;
 };
-
 
 } // afmize
 #endif// AFMIZE_OBSERVE_HPP
