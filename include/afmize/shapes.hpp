@@ -71,7 +71,7 @@ aabb<Real> make_bounding_box(
     aabb<Real> bb = make_aabb(particles.front());
     for(const auto& p : particles)
     {
-        bb = merge_aabb(bb, make_aabb(p))
+        bb = merge_aabb(bb, make_aabb(p));
     }
     return bb;
 }
@@ -87,7 +87,7 @@ sphere<Real> make_bounding_sphere_centered_at_geometric_center(
         const std::vector<sphere<Real>, Alloc>& particles)
 {
     sphere<Real> sph;
-    sph.center(0,0,0);
+    sph.center = mave::vector<Real, 3>(0,0,0);
     for(const auto& p : particles)
     {
         sph.center += p.center;
