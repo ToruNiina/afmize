@@ -6,13 +6,22 @@
 namespace afmize
 {
 
-template<typename Real>
-struct score_negative_cosine_similarity_t
+template<typename Real, typename Mask>
+struct ScoreBase
+{
+    virtual ~ScoreBase() = default;
+    virtual Real calc(const stage<Real>&, const stage<Real>&, const Mask&) const = 0;
+};
+
+template<typename Real, typename Mask>
+struct NegativeCosineSimilarity: public ScoreBase<Real, Mask>
 {
     Real k; // modulating coefficient
 
-    template<typename Mask>
-    Real operator()(const stage<Real>& lhs, const stage<Real>& rhs, const Mask& mask) const
+    explicit NegativeCosineSimilarity(const Real k_): k(k_) {}
+    ~NegativeCosineSimilarity() override = default;
+
+    Real calc(const stage<Real>& lhs, const stage<Real>& rhs, const Mask& mask) const override
     {
         Real numer  = 0;
         Real denom1 = 0;
@@ -37,13 +46,15 @@ struct score_negative_cosine_similarity_t
     }
 };
 
-template<typename Real>
-struct score_root_mean_squared_deviation_t
+template<typename Real, typename Mask>
+struct RootMeanSquareDeviation: public ScoreBase<Real, Mask>
 {
     Real k; // modulating coefficient
 
-    template<typename Mask>
-    Real operator()(const stage<Real>& lhs, const stage<Real>& rhs, const Mask& mask) const
+    explicit RootMeanSquareDeviation(const Real k_): k(k_) {}
+    ~RootMeanSquareDeviation() override = default;
+
+    Real calc(const stage<Real>& lhs, const stage<Real>& rhs, const Mask& mask) const override
     {
         std::uint64_t N = 0;
         Real sd = 0.0;
