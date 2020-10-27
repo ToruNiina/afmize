@@ -114,14 +114,17 @@ class xyz_reader final : public reader_base<realT>
         }
 
         snapshot_type snapshot;
-        snapshot.reserve(N);
-        while(!this->is_eof() && snapshot.size() < N)
+        snapshot.first .reserve(N);
+        snapshot.second.reserve(N);
+        while(!this->is_eof() && snapshot.first.size() < N)
         {
             std::string line;
             std::getline(this->xyz, line);
-            snapshot.push_back(this->read_atom(line));
+            const auto name_pos = this->read_atom(line);
+            snapshot.first .push_back(name_pos.first);
+            snapshot.second.push_back(name_pos.second);
         }
-        if(snapshot.size() != N)
+        if(snapshot.first.size() != N || snapshot.second.size() != N)
         {
             throw std::runtime_error("a snapshot in the xyz file (" +
                     this->filename + std::string(") lacks particle"));
@@ -131,7 +134,7 @@ class xyz_reader final : public reader_base<realT>
 
   private:
 
-    sphere<realT> read_atom(const std::string& line)
+    std::pair<std::string, sphere<realT>> read_atom(const std::string& line)
     {
         std::istringstream iss(line);
         std::string name, x, y, z;
@@ -207,7 +210,7 @@ class xyz_reader final : public reader_base<realT>
             std::exit(EXIT_FAILURE);
         }
 
-        return particle;
+        return std::make_pair(name, particle);
     }
 
   private:

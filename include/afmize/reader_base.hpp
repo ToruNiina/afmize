@@ -13,7 +13,8 @@ template<typename realT>
 class reader_base
 {
   public:
-    using snapshot_type   = std::vector<sphere<realT>>;
+    // pairof {name, shape}
+    using snapshot_type   = std::pair<std::vector<std::string>, std::vector<sphere<realT>>>;
     using trajectory_type = std::vector<snapshot_type>;
 
     struct no_more_model{};

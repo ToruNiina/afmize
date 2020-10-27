@@ -115,7 +115,9 @@ class pdb_reader final : public reader_base<realT>
             }
             if(header == "ATOM  " || (this->read_HETATMs && header == "HETATM"))
             {
-                snap.push_back(read_atom(line));
+                const auto name_xyz = read_atom(line);
+                snap.first .push_back(name_xyz.first);
+                snap.second.push_back(name_xyz.second);
             }
             this->pdb.peek();
         }
@@ -126,7 +128,7 @@ class pdb_reader final : public reader_base<realT>
 
   private:
 
-    sphere<realT> read_atom(const std::string& line)
+    std::pair<std::string, sphere<realT>> read_atom(const std::string& line)
     {
         const auto header = line.substr(0, 6);
         if(!(header == "ATOM  " || (this->read_HETATMs && header == "HETATM")))
@@ -197,7 +199,11 @@ class pdb_reader final : public reader_base<realT>
             std::exit(EXIT_FAILURE);
         }
 
-        return particle;
+        const auto atm = (!std::isupper(line.at(12))) ?
+                          this->get_substr(line, ln, 13, 1) :
+                          this->get_substr(line, ln, 12, 2);
+
+        return std::make_pair(atm, particle);
     }
 
     realT get_radius(const std::string& line)
