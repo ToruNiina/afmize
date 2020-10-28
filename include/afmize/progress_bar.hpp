@@ -4,6 +4,7 @@
 #include <cmath>
 #include <array>
 #include <cassert>
+#include <cstdio>
 
 /* This code is originally implemented for other project named Mjolnir,       *
  * by the same author, Toru Niina (c) 2018. destributed under the MIT License.*/
