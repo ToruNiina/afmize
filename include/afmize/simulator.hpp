@@ -85,6 +85,8 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
     SimulatedAnnealingSimulator(const std::size_t total_step,
             const std::size_t   save,
             const std::uint32_t seed,
+            const Real sigma_x,  const Real sigma_y,
+            const Real max_rotx, const Real max_roty, const Real max_rotz,
             stage<Real>         ref,
             stage<Real>         stg,
             system<Real>        sys,
@@ -94,6 +96,11 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         : step_(0),
           total_step_(total_step),
           save_step_(save),
+          sigma_dx_(sigma_x),
+          sigma_dy_(sigma_y),
+          max_drotx_(max_rotx),
+          max_droty_(max_roty),
+          max_drotz_(max_rotz),
           rng_(seed),
           nrm_(0.0, 1.0),
           stg_(std::move(stg)),
@@ -105,13 +112,14 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
           schedule_(std::move(schedule)),
           bar_(total_step)
     {
-        current_energy_ = score_->calc(reference_, stg_, Mask(stg_, sys_));
-
         // FIXME
         // - split stage into image and resolution info
         // - move resolution information to system
         sys_.cells.initialize(stg_.x_resolution(), stg_.y_resolution(),
                               sys.particles);
+        sys_.cells.construct(sys_.particles, sys_.bounding_box);
+        obs_->observe(stg_, sys_);
+        current_energy_ = score_->calc(reference_, stg_, Mask(stg_, sys_));
     }
     ~SimulatedAnnealingSimulator() override = default;
 
@@ -247,7 +255,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         const auto energy = score_->calc(reference_, stg_, Mask(stg_, sys_));
         const auto deltaE = energy - current_energy_;
 
-//         if(deltaE <= 0.0 || this->generate_01() < std::exp(-deltaE * beta))
+        if(deltaE <= 0.0 || this->generate_01() < std::exp(-deltaE * beta))
         {
             sys_ = next_;
             current_energy_ = energy;;
@@ -344,10 +352,13 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         const auto energy = score_->calc(reference_, stg_, Mask(stg_, sys_));
         const auto deltaE = energy - current_energy_;
 
-//         if(deltaE <= 0.0 || this->generate_01() < std::exp(-deltaE * beta))
+//         std::cerr << "trial energy = " << energy << std::endl;
+//         std::cerr << "trial deltaE = " << deltaE << std::endl;
+
+        if(deltaE <= 0.0 || this->generate_01() < std::exp(-deltaE * beta))
         {
             sys_ = next_;
-            current_energy_ = energy;;
+            current_energy_ = energy;
         }
         return;
     }
