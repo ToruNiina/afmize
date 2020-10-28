@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <vector>
 #include <iterator>
+#include <numeric>
 
 // mask for image (stage). return true if masked.
 namespace afmize
@@ -39,8 +40,13 @@ struct mask_by_rectangle
 {
     // here, to make the area uniform, it uses sphere first
     mask_by_rectangle(const stage<Real>& stage_info, const system<Real>& mol)
-        : mask_by_rectangle(stage_info,
-            make_bounding_sphere_centered_at_geometric_center(mol.particles))
+        : mask_by_rectangle(stage_info, sphere<Real>{mol.bounding_radius,
+            std::accumulate(
+                mol.particles.begin(), mol.particles.end(), mave::vector<Real, 3>(0,0,0),
+                [](const mave::vector<Real, 3>& s, const sphere<Real>& p) noexcept {
+                    return s + p.center;
+                }) / static_cast<Real>(mol.particles.size())
+            })
     {}
 
     mask_by_rectangle(const stage<Real>& stage_info, const sphere<Real>& mol)
@@ -53,17 +59,18 @@ struct mask_by_rectangle
 
         const std::int64_t xth = std::ceil((mol.center[0] - stage_lw_x) / stage_info.x_resolution());
         const std::int64_t yth = std::ceil((mol.center[1] - stage_lw_y) / stage_info.y_resolution());
-
-        this->x_lower_ = std::max<std::int64_t>(0, xth - hw_x); // both ends are
-        this->x_upper_ = std::min<std::int64_t>(0, xth + hw_x); // included
+        // both ends are included
+        this->x_lower_ = std::max<std::int64_t>(0, xth - hw_x);
+        this->x_upper_ = std::min<std::int64_t>(stage_info.x_pixel(), xth + hw_x);
         this->y_lower_ = std::max<std::int64_t>(0, yth - hw_y);
-        this->y_upper_ = std::min<std::int64_t>(0, yth + hw_y);
+        this->y_upper_ = std::min<std::int64_t>(stage_info.y_pixel(), yth + hw_y);
     }
 
     bool operator()(const std::size_t x, const std::size_t y) const noexcept
     {
-        return (x_lower_ <= x && x <= x_upper_) &&
-               (y_lower_ <= y && y <= y_upper_);
+        // mask outside
+        return (x < x_lower_ || x_upper_ < x) ||
+               (y < y_lower_ || y_upper_ < y);
     }
 
     std::size_t lower_bounding_x() const noexcept {return x_lower_;}
