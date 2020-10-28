@@ -138,8 +138,14 @@ stage<Real> read_reference_image(const toml::value& sim, const stage<Real>& stg)
             answer.bounding_box.lower -= offset;
             answer.bounding_box.upper -= offset;
         }
+
+        answer.cells.initialize(stage.x_resolution(), stage.y_resolution(),
+                                answer.particles);
+        answer.cells.construct(answer.particles, answer.bounding_box);
+
         const auto obs = read_observation_method<Real>(sim);
-        obs->observe(stage, answer, 0.0);
+
+        obs->observe(stage, answer);
     }
     return stage;
 }
@@ -149,12 +155,13 @@ std::unique_ptr<SimulatedAnnealingSimulator<Real, Mask>>
 read_simulated_annealing_simulator(const toml::value& sim, stage<Real> stg, system<Real> init)
 {
     const auto steps = toml::find<std::size_t>(sim, "algorithm", "steps");
+    const auto save_step = toml::find<std::size_t>(sim, "algorithm", "output");
     const auto seed = toml::find<std::uint32_t>(sim, "seed");
 
     auto ref = read_reference_image(sim, stg);
 
     return std::make_unique<SimulatedAnnealingSimulator<Real, Mask>>(
-        steps, seed,
+        steps, save_step, seed,
         std::move(ref),
         std::move(stg),
         std::move(init),
@@ -195,6 +202,24 @@ std::unique_ptr<SimulatorBase<Real>> read_simulator(const toml::value& config,
 }
 
 template<typename Real>
+void write_tsv(const std::string& out, const stage<Real>& stg)
+{
+    using namespace std::literals::string_literals;
+    std::ofstream ofs(out);
+
+    for(std::size_t y=0; y<stg.y_pixel(); ++y)
+    {
+        for(std::size_t x=0; x<stg.x_pixel(); ++x)
+        {
+            ofs << "\t" << std::setprecision(6) << std::setw(10) << stg.at(x, y);
+        }
+        ofs << "\n";
+    }
+    return;
+}
+
+
+template<typename Real>
 void write_ppm(const stage<Real>& stg, const std::string& out,
                const std::pair<Real, Real> height_range)
 {
@@ -217,7 +242,7 @@ void write_ppm(const stage<Real>& stg, const std::string& out,
         reversed[ppm.y_size() - i - 1] = ppm[i];
     }
 
-    pnm::write(out + ".ppm"s, reversed, pnm::format::binary);
+    pnm::write(out + ".ppm"s, reversed, pnm::format::ascii);
     return;
 }
 
@@ -340,12 +365,15 @@ int main(int argc, char** argv)
     auto sim = afmize::read_simulator(config, std::move(stg),
             afmize::system<Real>(reader->read_snapshot()));
 
+    const auto save_step = toml::find<std::size_t>(config, "simulator", "algorithm", "output");
     while(sim->step())
     {
-        if(sim->current_step() % 100)
+        if(sim->current_step() % save_step == 0)
         {
-            afmize::write_ppm(sim->current_image(), output_basename + ".pdb");
-            afmize::write_xyz(output_basename + ".xyz", sim->current_state());
+            const auto fname = output_basename + "_"+ std::to_string(sim->current_step());
+            afmize::write_ppm(sim->current_image(), fname);
+            afmize::write_xyz(fname, sim->current_state());
+            afmize::write_tsv(fname + ".tsv", sim->current_image());
         }
     }
     afmize::write_xyz(output_basename, sim->current_state());
