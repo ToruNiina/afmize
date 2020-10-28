@@ -123,5 +123,13 @@ bool collides_with(const sphere<Real>& probe, const aabb<Real>& box)
     return (dx * dx + dy * dy + dz * dz) < (probe.radius * probe.radius);
 }
 
+template<typename Real>
+bool collides_with(const aabb<Real>& lhs, const aabb<Real>& rhs)
+{
+  return (lhs.lower[0] <= rhs.upper[0] && rhs.lower[0] <= lhs.upper[0]) &&
+         (lhs.lower[1] <= rhs.upper[1] && rhs.lower[1] <= lhs.upper[1]) &&
+         (lhs.lower[2] <= rhs.upper[2] && rhs.lower[2] <= lhs.upper[2]);
+}
+
 } // afmize
 #endif// AFMIZE_COLLISION_HPP

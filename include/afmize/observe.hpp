@@ -77,13 +77,17 @@ struct ObserverBase
 template<typename Real, bool Descritize>
 struct RigidObserver: public ObserverBase<Real>
 {
-    explicit RigidObserver(default_probe<Real> p): probe(std::move(p)) {}
+    explicit RigidObserver(default_probe<Real> p)
+        : probe(std::move(p))
+    {}
     ~RigidObserver() override = default;
 
     // here we assume the stage locates z == 0.
     void observe(stage<Real>& stg, const system<Real>& sys) override
     {
-        sys.cells.diagnosis(sys.particles);
+        // to skip pixels, we first calculate aabb of the probe at the
+        const Real max_frustum_radius = probe.radius +
+            std::tan(probe.angle) * (sys.bounding_box.upper[2] - probe.radius);
 
         const Real initial_z = sys.bounding_box.upper[2] + probe.radius;
         for(std::size_t j=0; j<stg.y_pixel(); ++j)
@@ -92,6 +96,20 @@ struct RigidObserver: public ObserverBase<Real>
         {
             probe.apex    = stg.position_at(i, j);
             probe.apex[2] = initial_z;
+
+            aabb<Real> probe_aabb;
+            probe_aabb.upper[0] = probe.apex[0] + max_frustum_radius;
+            probe_aabb.upper[1] = probe.apex[1] + max_frustum_radius;
+            probe_aabb.upper[2] = sys.bounding_box.upper[2];
+
+            probe_aabb.lower[0] = probe.apex[0] - max_frustum_radius;
+            probe_aabb.lower[1] = probe.apex[1] - max_frustum_radius;
+            probe_aabb.lower[2] = 0.0;
+
+            if( ! collides_with(probe_aabb, sys.bounding_box))
+            {
+                continue;
+            }
 
 //             const auto min_height = collide_at(sys, probe, 0.0);
 
