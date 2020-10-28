@@ -42,7 +42,7 @@ struct NegativeCosineSimilarity: public ScoreBase<Real, Mask>
                 denom2 += r * r;
             }
         }
-        return k * (1.0 - numer / (denom1 * denom2));
+        return k * (1.0 - numer / std::sqrt(denom1 * denom2));
     }
 };
 
