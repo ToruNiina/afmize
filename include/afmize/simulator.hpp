@@ -164,34 +164,40 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
 
         // around x
         const auto rot_x = (this->generate_01() * 2.0 - 1.0) * max_drotx_;
+        const auto cos_x = std::cos(rot_x);
+        const auto sin_x = std::sin(rot_x);
 //         std::cerr << "x rotation = " << rot_x << std::endl;
         mat.zero();
         mat(0, 0) = 1.0;
-        mat(1, 1) =  std::cos(rot_x);
-        mat(1, 2) = -std::sin(rot_x);
-        mat(2, 1) =  std::sin(rot_x);
-        mat(2, 2) =  std::cos(rot_x);
+        mat(1, 1) =  cos_x;
+        mat(1, 2) = -sin_x;
+        mat(2, 1) =  sin_x;
+        mat(2, 2) =  cos_x;
         this->try_rotation(mat, beta);
 
         // rot around y
         const auto rot_y = (this->generate_01() * 2.0 - 1.0) * max_droty_;
+        const auto cos_y = std::cos(rot_y);
+        const auto sin_y = std::sin(rot_y);
 //         std::cerr << "y rotation = " << rot_y << std::endl;
         mat.zero();
-        mat(0, 0) =  std::cos(rot_y);
-        mat(0, 2) =  std::sin(rot_y);
+        mat(0, 0) =  cos_y;
+        mat(0, 2) =  sin_y;
         mat(1, 1) = 1.0;
-        mat(2, 0) = -std::sin(rot_y);
-        mat(2, 2) =  std::cos(rot_y);
+        mat(2, 0) = -sin_y;
+        mat(2, 2) =  cos_y;
         this->try_rotation(mat, beta);
 
         // rot around z
         const auto rot_z = (this->generate_01() * 2.0 - 1.0) * max_drotz_;
+        const auto cos_z = std::cos(rot_z);
+        const auto sin_z = std::sin(rot_z);
 //         std::cerr << "z rotation = " << rot_z << std::endl;
         mat.zero();
-        mat(0, 0) =  std::cos(rot_z);
-        mat(0, 1) = -std::sin(rot_z);
-        mat(1, 0) =  std::sin(rot_z);
-        mat(1, 1) =  std::cos(rot_z);
+        mat(0, 0) =  cos_z;
+        mat(0, 1) = -sin_z;
+        mat(1, 0) =  sin_z;
+        mat(1, 1) =  cos_z;
         mat(2, 2) = 1.0;
         this->try_rotation(mat, beta);
 
