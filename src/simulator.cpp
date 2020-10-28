@@ -51,8 +51,11 @@ void write_xyz(const std::string& basename, const system<Real>& sys)
 template<typename Real>
 std::unique_ptr<ObserverBase<Real>> read_observation_method(const toml::value& sim)
 {
+    constexpr Real pi         = Real(3.1415926535897932384626);
+    constexpr Real deg_to_rad = pi / Real(180.0);
+
     default_probe<Real> probe;
-    probe.angle  = toml::find<Real>(sim, "probe", "angle");
+    probe.angle  = toml::find<Real>(sim, "probe", "angle") * deg_to_rad;
     probe.radius = read_as_angstrom<Real>(toml::find(sim, "probe", "radius"));
 
     const auto z_descritized = toml::find<bool>(sim, "image", "descritized");
@@ -233,8 +236,6 @@ void write_ppm(const stage<Real>& stg, const std::string& out)
 int main(int argc, char** argv)
 {
     using Real = double;
-    constexpr Real pi         = Real(3.1415926535897932384626);
-    constexpr Real deg_to_rad = pi / Real(180.0);
 
     if(argc != 2)
     {
