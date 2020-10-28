@@ -21,10 +21,14 @@ struct system
             this->bounding_box =
                 merge_aabb(this->bounding_box, make_aabb(particles[i]));
         }
+        // since the molecule is rigid-body, this radius never change.
+        bounding_radius = make_bounding_sphere_centered_at_geometric_center(
+                particles).radius;
     }
     ~system() = default;
 
     Real                      max_radius;
+    Real                      bounding_radius;
     aabb<Real>                bounding_box;
     std::vector<sphere<Real>> particles;
     std::vector<std::string>  names;
