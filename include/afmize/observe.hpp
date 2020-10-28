@@ -108,6 +108,7 @@ struct RigidObserver: public ObserverBase<Real>
 
             if( ! collides_with(probe_aabb, sys.bounding_box))
             {
+                stg(i, j) = 0.0;
                 continue;
             }
 
