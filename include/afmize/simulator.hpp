@@ -103,7 +103,8 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
           max_drotz_(max_rotz),
           rng_(seed),
           nrm_(0.0, 1.0),
-          stg_(std::move(stg)),
+          stg_(stg),
+          tmp_stg_(std::move(stg)),
           reference_(std::move(ref)),
           sys_(sys),
           next_(sys),
@@ -155,6 +156,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
 
         const auto dx = nrm_(rng_) * sigma_dx_;
         const auto dy = nrm_(rng_) * sigma_dy_;
+//         std::cerr << "dxy = " << dx << ", " << dy << std::endl;
         this->try_translation(mave::vector<Real, 3>(dx, dy, 0.0), beta);
 
         // rotation
@@ -162,6 +164,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
 
         // around x
         const auto rot_x = (this->generate_01() * 2.0 - 1.0) * max_drotx_;
+//         std::cerr << "x rotation = " << rot_x << std::endl;
         mat.zero();
         mat(0, 0) = 1.0;
         mat(1, 1) =  std::cos(rot_x);
@@ -172,21 +175,23 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
 
         // rot around y
         const auto rot_y = (this->generate_01() * 2.0 - 1.0) * max_droty_;
+//         std::cerr << "y rotation = " << rot_y << std::endl;
         mat.zero();
-        mat(0, 0) =  std::cos(rot_x);
-        mat(0, 2) =  std::sin(rot_x);
+        mat(0, 0) =  std::cos(rot_y);
+        mat(0, 2) =  std::sin(rot_y);
         mat(1, 1) = 1.0;
-        mat(2, 0) = -std::sin(rot_x);
-        mat(2, 2) =  std::cos(rot_x);
+        mat(2, 0) = -std::sin(rot_y);
+        mat(2, 2) =  std::cos(rot_y);
         this->try_rotation(mat, beta);
 
         // rot around z
         const auto rot_z = (this->generate_01() * 2.0 - 1.0) * max_drotz_;
+//         std::cerr << "z rotation = " << rot_z << std::endl;
         mat.zero();
-        mat(0, 0) =  std::cos(rot_x);
-        mat(0, 1) = -std::sin(rot_x);
-        mat(1, 0) =  std::sin(rot_x);
-        mat(1, 1) =  std::cos(rot_x);
+        mat(0, 0) =  std::cos(rot_z);
+        mat(0, 1) = -std::sin(rot_z);
+        mat(1, 0) =  std::sin(rot_z);
+        mat(1, 1) =  std::cos(rot_z);
         mat(2, 2) = 1.0;
         this->try_rotation(mat, beta);
 
@@ -197,7 +202,10 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
     system<Real> const& current_state() const noexcept override {return sys_;}
     system<Real>&       current_state()       noexcept override {return sys_;}
 
-    stage<Real> const& current_image() const noexcept override {return stg_;}
+    stage<Real> const& current_image() const noexcept override
+    {
+        return stg_;
+    }
 
     std::unique_ptr<ObserverBase<Real>>& observer() noexcept {return obs_;}
 
@@ -229,11 +237,13 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         next_.bounding_box.upper += dr;
         next_.bounding_box.lower += dr;
 
-        // avoid particle from escaping observation stage
-        if(next_.bounding_box.upper[0] < stg_.x_range().first  ||
-           next_.bounding_box.upper[1] < stg_.y_range().first  ||
-           stg_.x_range().second < next_.bounding_box.lower[0] ||
-           stg_.y_range().second < next_.bounding_box.lower[1])
+        // avoid particle from escaping observation stage.
+        // To fix the number of pixels when calculating score, it does not
+        // allow particle sticks out of the stage region.
+        if(next_.bounding_box.lower[0] < tmp_stg_.x_range().first  ||
+           next_.bounding_box.lower[1] < tmp_stg_.y_range().first  ||
+           tmp_stg_.x_range().second < next_.bounding_box.upper[0] ||
+           tmp_stg_.y_range().second < next_.bounding_box.upper[1])
         {
             return ;
         }
@@ -249,16 +259,17 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
 
         // generate pseudo AFM image
         // bottom == 0 because the bottom object is aligned to 0.0.
-        obs_->observe(stg_, next_);
+        obs_->observe(tmp_stg_, next_);
 
         // calculate score depending on score function
-        const auto energy = score_->calc(reference_, stg_, Mask(stg_, sys_));
+        const auto energy = score_->calc(reference_, tmp_stg_, Mask(tmp_stg_, sys_));
         const auto deltaE = energy - current_energy_;
 
         if(deltaE <= 0.0 || this->generate_01() < std::exp(-deltaE * beta))
         {
             sys_ = next_;
             current_energy_ = energy;;
+            stg_ = tmp_stg_;
         }
         return;
     }
@@ -285,9 +296,9 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         translation1(1, 1) = 1.0;
         translation1(2, 2) = 1.0;
         translation1(3, 3) = 1.0;
-        translation1(0, 3) = com[0];
-        translation1(1, 3) = com[1];
-        translation1(2, 3) = com[2];
+        translation1(0, 3) = -com[0];
+        translation1(1, 3) = -com[1];
+        translation1(2, 3) = -com[2];
 
         mave::matrix<Real, 4, 4> rotation;
         rotation.zero();
@@ -308,9 +319,9 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         translation2(1, 1) = 1.0;
         translation2(2, 2) = 1.0;
         translation2(3, 3) = 1.0;
-        translation2(0, 3) = -com[0];
-        translation2(1, 3) = -com[1];
-        translation2(2, 3) = -com[2];
+        translation2(0, 3) = com[0];
+        translation2(1, 3) = com[1];
+        translation2(2, 3) = com[2];
 
         const mave::matrix<Real, 4, 4> matrix = translation2 * rotation * translation1;
         for(auto& p : this->next_.particles)
@@ -325,10 +336,10 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         next_.bounding_box = make_bounding_box(next_.particles);
 
         // avoid particle from escaping observation stage
-        if(next_.bounding_box.upper[0] < stg_.x_range().first  ||
-           next_.bounding_box.upper[1] < stg_.y_range().first  ||
-           stg_.x_range().second < next_.bounding_box.lower[0] ||
-           stg_.y_range().second < next_.bounding_box.lower[1])
+        if(next_.bounding_box.lower[0] < tmp_stg_.x_range().first  ||
+           next_.bounding_box.lower[1] < tmp_stg_.y_range().first  ||
+           tmp_stg_.x_range().second < next_.bounding_box.upper[0] ||
+           tmp_stg_.y_range().second < next_.bounding_box.upper[1])
         {
             return ;
         }
@@ -346,10 +357,10 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
 
         // generate pseudo AFM image
         // bottom == 0 because the bottom object is aligned to 0.0.
-        obs_->observe(stg_, next_);
+        obs_->observe(tmp_stg_, next_);
 
         // calculate score depending on score function
-        const auto energy = score_->calc(reference_, stg_, Mask(stg_, sys_));
+        const auto energy = score_->calc(reference_, tmp_stg_, Mask(tmp_stg_, sys_));
         const auto deltaE = energy - current_energy_;
 
 //         std::cerr << "trial energy = " << energy << std::endl;
@@ -359,6 +370,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         {
             sys_ = next_;
             current_energy_ = energy;
+            stg_ = tmp_stg_;
         }
         return;
     }
@@ -383,6 +395,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
     std::mt19937                             rng_;
     std::normal_distribution<Real>           nrm_;
     stage<Real>                              stg_;
+    stage<Real>                          tmp_stg_;
     stage<Real>                        reference_;
     system<Real>                             sys_;
     system<Real>                            next_;
