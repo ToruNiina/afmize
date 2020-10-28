@@ -61,9 +61,9 @@ struct mask_by_rectangle
         const std::int64_t yth = std::ceil((mol.center[1] - stage_lw_y) / stage_info.y_resolution());
         // both ends are included
         this->x_lower_ = std::max<std::int64_t>(0, xth - hw_x);
-        this->x_upper_ = std::min<std::int64_t>(stage_info.x_pixel(), xth + hw_x);
+        this->x_upper_ = std::min<std::int64_t>(stage_info.x_pixel()-1, xth + hw_x);
         this->y_lower_ = std::max<std::int64_t>(0, yth - hw_y);
-        this->y_upper_ = std::min<std::int64_t>(stage_info.y_pixel(), yth + hw_y);
+        this->y_upper_ = std::min<std::int64_t>(stage_info.y_pixel()-1, yth + hw_y);
     }
 
     bool operator()(const std::size_t x, const std::size_t y) const noexcept
