@@ -92,5 +92,36 @@ bool collides_with(const circular_frustum<Real>& probe,
     }
 }
 
+// circular_frustum is always aligned to z axis.
+template<typename Real>
+bool collides_with(const circular_frustum<Real>& probe, const aabb<Real>& box)
+{
+    if(box.upper[2] < probe.apex[2])
+    {
+        return false;
+    }
+
+    const auto c = mave::vector<Real, 3>(probe.apex[0], probe.apex[1], box.upper[2]);
+    const auto r = probe.radius + std::tan(probe.angle) * (box.upper[2] - probe.apex[2]);
+
+    const auto dx = std::max(box.lower[0] - c[0], std::max(Real(0), c[0] - box.upper[0]));
+    const auto dy = std::max(box.lower[1] - c[1], std::max(Real(0), c[1] - box.upper[1]));
+
+    return (dx * dx + dy * dy) < (r * r);
+}
+
+template<typename Real>
+bool collides_with(const sphere<Real>& probe, const aabb<Real>& box)
+{
+    const auto du = probe.center - box.upper;
+    const auto dl = box.lower - probe.center;
+
+    const auto dx = std::max(du[0], std::max(Real(0), dl[0]));
+    const auto dy = std::max(du[1], std::max(Real(0), dl[1]));
+    const auto dz = std::max(du[2], std::max(Real(0), dl[2]));
+
+    return (dx * dx + dy * dy + dz * dz) < (probe.radius * probe.radius);
+}
+
 } // afmize
 #endif// AFMIZE_COLLISION_HPP

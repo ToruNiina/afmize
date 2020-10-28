@@ -13,6 +13,13 @@ struct sphere
     mave::vector<Real, 3> center;
 };
 
+//          angle
+// \       |  /
+//  \      | /
+//   \_____|/
+//       '--'
+//       radius
+//
 template<typename Real>
 struct circular_frustum
 {
@@ -26,7 +33,7 @@ struct circular_frustum
 template<typename Real>
 struct default_probe
 {
-    Real angle;
+    Real angle;  // radian
     Real radius;
     mave::vector<Real, 3> apex;
 };
