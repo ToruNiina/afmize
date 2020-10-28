@@ -271,10 +271,14 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         const auto energy = score_->calc(reference_, tmp_stg_, Mask(tmp_stg_, sys_));
         const auto deltaE = energy - current_energy_;
 
+//         std::cerr << "beta = " << beta << ", dE = " << deltaE
+//                   << ", Enext = " << energy << ", Ecurr = " << current_energy_
+//                   << ", prob = " << std::exp(-deltaE * beta) << std::endl;
+
         if(deltaE <= 0.0 || this->generate_01() < std::exp(-deltaE * beta))
         {
             sys_ = next_;
-            current_energy_ = energy;;
+            current_energy_ = energy;
             stg_ = tmp_stg_;
         }
         return;
@@ -368,6 +372,10 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         // calculate score depending on score function
         const auto energy = score_->calc(reference_, tmp_stg_, Mask(tmp_stg_, sys_));
         const auto deltaE = energy - current_energy_;
+
+//         std::cerr << "beta = " << beta << ", dE = " << deltaE
+//                   << ", Enext = " << energy << ", Ecurr = " << current_energy_
+//                   << ", prob = " << std::exp(-deltaE * beta) << std::endl;
 
 //         std::cerr << "trial energy = " << energy << std::endl;
 //         std::cerr << "trial deltaE = " << deltaE << std::endl;
