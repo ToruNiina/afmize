@@ -1,5 +1,6 @@
 #ifndef AFMIZE_OBSERVE_HPP
 #define AFMIZE_OBSERVE_HPP
+#include "cell_list.hpp"
 #include "collision.hpp"
 #include "shapes.hpp"
 #include "system.hpp"
@@ -18,8 +19,6 @@ template<typename Real>
 Real collide_at(const system<Real>& sys, const default_probe<Real>& probe,
                 const Real bottom)
 {
-    // TODO: speedup
-    //
     // the point at which the probe collides with the stage
     Real height = bottom + probe.radius;
     for(const auto& sph : sys.particles)
@@ -30,7 +29,6 @@ Real collide_at(const system<Real>& sys, const default_probe<Real>& probe,
         const Real dz_frs = collision_z(circular_frustum<Real>{
                 probe.angle, probe.radius, probe.apex
             }, sph);
-
         if(!std::isnan(dz_frs))
         {
             height = std::max(height, probe.apex[2] + dz_frs);
@@ -73,7 +71,7 @@ template<typename Real>
 struct ObserverBase
 {
     virtual ~ObserverBase() = default;
-    virtual void observe(stage<Real>&, const system<Real>&, const Real) = 0;
+    virtual void observe(stage<Real>&, const system<Real>&) = 0;
 };
 
 template<typename Real, bool Descritize>
@@ -82,29 +80,108 @@ struct RigidObserver: public ObserverBase<Real>
     explicit RigidObserver(default_probe<Real> p): probe(std::move(p)) {}
     ~RigidObserver() override = default;
 
-    void observe(stage<Real>& stg, const system<Real>& sys, const Real bottom) override
+    // here we assume the stage locates z == 0.
+    void observe(stage<Real>& stg, const system<Real>& sys) override
     {
+        sys.cells.diagnosis(sys.particles);
+
         const Real initial_z = sys.bounding_box.upper[2] + probe.radius;
         for(std::size_t j=0; j<stg.y_pixel(); ++j)
         {
-            for(std::size_t i=0; i<stg.x_pixel(); ++i)
+        for(std::size_t i=0; i<stg.x_pixel(); ++i)
+        {
+            probe.apex    = stg.position_at(i, j);
+            probe.apex[2] = initial_z;
+
+//             const auto min_height = collide_at(sys, probe, 0.0);
+
+            // screen particles and get initial guess of the (minimum) height
+            Real min_height = 0.0;
+            for(const auto& elem : sys.cells.cell_at(probe.apex))
             {
-                probe.apex    = stg.position_at(i, j);
-                probe.apex[2] = initial_z;
-                const auto height = afmize::collide_at(sys, probe, bottom);
-                if (Descritize)
+                const auto& particle = sys.particles.at(elem.particle_idx);
+                const auto  dz_sph   = collision_z(
+                        sphere<Real>{probe.radius, probe.apex}, particle);
+                if(!std::isnan(dz_sph))
                 {
-                    stg(i, j) = afmize::discretize(height, stg.z_resolution(), bottom);
-                }
-                else
-                {
-                    stg(i, j) = height;
+                    min_height = std::max(min_height, probe.apex[2] + dz_sph - probe.radius);
+                    break;
                 }
             }
+            // Now we have initial guess. Next we check additional collision.
+            probe.apex[2] = min_height + probe.radius;
+
+            // additional collision with circular frustum
+            sys.cells.overwrapping_cells(
+                circular_frustum<Real>{probe.angle, probe.radius, probe.apex},
+                this->index_buffer_);
+
+            for(const auto cell_idx : index_buffer_)
+            {
+                for(const auto& elem : sys.cells.cell_at(cell_idx))
+                {
+                    if(elem.z_coordinate + sys.max_radius < min_height)
+                    {
+                        // elements are sorted by its z coordinate.
+                        break;
+                    }
+                    const auto& particle = sys.particles.at(elem.particle_idx);
+
+                    const auto dz = collision_z(
+                            circular_frustum<Real>{probe.angle, probe.radius, probe.apex},
+                            particle);
+
+                    if(!std::isnan(dz)) // optional requires C++17 and it's 14...
+                    {
+                        // at the tip, we always have a (half) sphere.
+                        // the top of the tip is always lower than the apex of
+                        // circular frustum in probe.radius.
+                        min_height = std::max(min_height, probe.apex[2] + dz - probe.radius);
+                    }
+                }
+            }
+
+            // additional collision with tip sphere
+            probe.apex[2] = initial_z;
+            sys.cells.overwrapping_cells(sphere<Real>{probe.radius, probe.apex},
+                                         this->index_buffer_);
+            for(const auto cell_idx : index_buffer_)
+            {
+                for(const auto& elem : sys.cells.cell_at(cell_idx))
+                {
+                    if(elem.z_coordinate + sys.max_radius < min_height)
+                    {
+                        // elements are sorted by its z coordinate.
+                        break;
+                    }
+                    const auto& particle = sys.particles.at(elem.particle_idx);
+
+                    const auto dz_sph = collision_z(
+                            sphere<Real>{probe.radius, probe.apex}, particle);
+
+                    if(!std::isnan(dz_sph))
+                    {
+                        min_height = std::max(min_height, probe.apex[2] + dz_sph - probe.radius);
+                    }
+                }
+            }
+
+            if (Descritize)
+            {
+                stg(i, j) = afmize::discretize(min_height, stg.z_resolution(), Real(0));
+            }
+            else
+            {
+                stg(i, j) = min_height;
+            }
+        }
         }
         return;
     }
     default_probe<Real> probe;
+
+  private:
+    std::vector<std::size_t> index_buffer_; // avoid allocation
 };
 
 } // afmize

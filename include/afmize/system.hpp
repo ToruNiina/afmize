@@ -1,6 +1,7 @@
 #ifndef AFMIZE_SYSTEM_HPP
 #define AFMIZE_SYSTEM_HPP
 #include <afmize/shapes.hpp>
+#include <afmize/cell_list.hpp>
 #include <vector>
 
 namespace afmize
@@ -27,6 +28,7 @@ struct system
     aabb<Real>                bounding_box;
     std::vector<sphere<Real>> particles;
     std::vector<std::string>  names;
+    cell_list<Real>           cells;
 };
 
 } // afmize

@@ -43,7 +43,7 @@ struct LinearSchedule : public ScheduleBase<Real>
     {}
     ~LinearSchedule() override = default;
 
-    Real temperature(const std::size_t tstep) const noexcept
+    Real temperature(const std::size_t tstep) const noexcept override
     {
         const auto t = static_cast<Real>(tstep) / static_cast<Real>(total_step_);
         return t * (last_ - init_) + init_;
@@ -65,7 +65,7 @@ struct ExponentialSchedule: public ScheduleBase<Real>
     {}
     ~ExponentialSchedule() override = default;
 
-    Real temperature(const std::size_t tstep) const noexcept
+    Real temperature(const std::size_t tstep) const noexcept override
     {
         const auto t = static_cast<Real>(tstep) / static_cast<Real>(total_step_);
         return init_ * std::exp(coef_ * t);
@@ -83,6 +83,7 @@ template<typename Real, typename Mask>
 struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
 {
     SimulatedAnnealingSimulator(const std::size_t total_step,
+            const std::size_t   save,
             const std::uint32_t seed,
             stage<Real>         ref,
             stage<Real>         stg,
@@ -92,6 +93,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
             std::unique_ptr<ScheduleBase<Real>> schedule)
         : step_(0),
           total_step_(total_step),
+          save_step_(save),
           rng_(seed),
           nrm_(0.0, 1.0),
           stg_(std::move(stg)),
@@ -104,6 +106,12 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
           bar_(total_step)
     {
         current_energy_ = score_->calc(reference_, stg_, Mask(stg_, sys_));
+
+        // FIXME
+        // - split stage into image and resolution info
+        // - move resolution information to system
+        sys_.cells.initialize(stg_.x_resolution(), stg_.y_resolution(),
+                              sys.particles);
     }
     ~SimulatedAnnealingSimulator() override = default;
 
@@ -124,9 +132,13 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         return step_ < total_step_;
     }
 
-    bool step()
+    bool step() override
     {
-        std::cerr << bar_.format(this->step_);
+        if(this->step_ % save_step_ == 0)
+        {
+            std::cerr << bar_.format(this->step_);
+            std::cout << "{\"step\":" << this->step_ << ", \"energy\":" << this->current_energy_ << "},\n" << std::endl;
+        }
 
         const auto temperature = schedule_->temperature(step_);
         const auto beta = 1.0 / temperature;
@@ -181,8 +193,8 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
 
     std::unique_ptr<ObserverBase<Real>>& observer() noexcept {return obs_;}
 
-    std::size_t total_step()   const noexcept {return total_step_;}
-    std::size_t current_step() const noexcept {return step_;}
+    std::size_t total_step()   const noexcept override {return total_step_;}
+    std::size_t current_step() const noexcept override {return step_;}
 
     Real& sigma_dx()        noexcept {return sigma_dx_;}
     Real  sigma_dx()  const noexcept {return sigma_dx_;}
@@ -224,15 +236,18 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
             p.center += dr;
         }
 
+        // update cell list
+        next_.cells.construct(next_.particles, next_.bounding_box);
+
         // generate pseudo AFM image
         // bottom == 0 because the bottom object is aligned to 0.0.
-        obs_->observe(stg_, next_, 0.0);
+        obs_->observe(stg_, next_);
 
         // calculate score depending on score function
         const auto energy = score_->calc(reference_, stg_, Mask(stg_, sys_));
         const auto deltaE = energy - current_energy_;
 
-        if(deltaE <= 0.0 || this->generate_01() < std::exp(-deltaE * beta))
+//         if(deltaE <= 0.0 || this->generate_01() < std::exp(-deltaE * beta))
         {
             sys_ = next_;
             current_energy_ = energy;;
@@ -318,15 +333,18 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         next_.bounding_box.upper[2] -= next_.bounding_box.lower[2];
         next_.bounding_box.lower[2]  = 0.0;
 
+        // update cell list
+        next_.cells.construct(next_.particles, next_.bounding_box);
+
         // generate pseudo AFM image
         // bottom == 0 because the bottom object is aligned to 0.0.
-        obs_->observe(stg_, next_, 0.0);
+        obs_->observe(stg_, next_);
 
         // calculate score depending on score function
         const auto energy = score_->calc(reference_, stg_, Mask(stg_, sys_));
         const auto deltaE = energy - current_energy_;
 
-        if(deltaE <= 0.0 || this->generate_01() < std::exp(-deltaE * beta))
+//         if(deltaE <= 0.0 || this->generate_01() < std::exp(-deltaE * beta))
         {
             sys_ = next_;
             current_energy_ = energy;;
@@ -341,6 +359,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
 
   private:
     std::size_t         step_;
+    std::size_t    save_step_;
     std::size_t   total_step_;
     Real      current_energy_;
 
