@@ -123,7 +123,8 @@ stage<Real> read_reference_image(const toml::value& sim, const stage<Real>& stg)
     stage<Real>  stage(stg);
     const auto refname = toml::find<std::string>(sim, "image", "reference");
 
-    if(refname.substr(refname.size() - 4, 4) == ".pdb")
+    if(refname.substr(refname.size() - 4, 4) == ".pdb" ||
+       refname.substr(refname.size() - 4, 4) == ".xyz")
     {
         // generate reference image
         system<Real> answer(open_file<Real>(refname)->read_snapshot());
@@ -144,8 +145,9 @@ stage<Real> read_reference_image(const toml::value& sim, const stage<Real>& stg)
         answer.cells.construct(answer.particles, answer.bounding_box);
 
         const auto obs = read_observation_method<Real>(sim);
-
         obs->observe(stage, answer);
+
+        write_tsv("reference.tsv", stage);
     }
     return stage;
 }
@@ -154,14 +156,23 @@ template<typename Real, typename Mask>
 std::unique_ptr<SimulatedAnnealingSimulator<Real, Mask>>
 read_simulated_annealing_simulator(const toml::value& sim, stage<Real> stg, system<Real> init)
 {
+    constexpr Real pi         = Real(3.1415926535897932384626);
+    constexpr Real deg_to_rad = pi / Real(180.0);
+
     const auto steps = toml::find<std::size_t>(sim, "algorithm", "steps");
     const auto save_step = toml::find<std::size_t>(sim, "algorithm", "output");
     const auto seed = toml::find<std::uint32_t>(sim, "seed");
 
+    const auto sx = afmize::read_as_angstrom<Real>(toml::find(sim, "algorithm", "sigma_x"));
+    const auto sy = afmize::read_as_angstrom<Real>(toml::find(sim, "algorithm", "sigma_y"));
+    const auto rx = toml::find<Real>(sim, "algorithm", "maxrot_x") * deg_to_rad;
+    const auto ry = toml::find<Real>(sim, "algorithm", "maxrot_y") * deg_to_rad;
+    const auto rz = toml::find<Real>(sim, "algorithm", "maxrot_z") * deg_to_rad;
+
     auto ref = read_reference_image(sim, stg);
 
     return std::make_unique<SimulatedAnnealingSimulator<Real, Mask>>(
-        steps, save_step, seed,
+        steps, save_step, seed, sx, sy, rx, ry, rz,
         std::move(ref),
         std::move(stg),
         std::move(init),
@@ -362,8 +373,19 @@ int main(int argc, char** argv)
     // score.method      = "correlation" | "RMSD"
     // score.k           = 10.0
 
-    auto sim = afmize::read_simulator(config, std::move(stg),
-            afmize::system<Real>(reader->read_snapshot()));
+
+    afmize::system<Real> sys(reader->read_snapshot());
+    if(sys.bounding_box.lower[2] != 0)
+    {
+        const mave::vector<Real, 3> offset{0, 0, sys.bounding_box.lower[2]};
+        for(auto& p : sys.particles)
+        {
+            p.center -= offset;
+        }
+        sys.bounding_box.lower -= offset;
+        sys.bounding_box.upper -= offset;
+    }
+    auto sim = afmize::read_simulator(config, std::move(stg), std::move(sys));
 
     const auto save_step = toml::find<std::size_t>(config, "simulator", "algorithm", "output");
     while(sim->step())
