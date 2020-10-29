@@ -24,8 +24,8 @@ struct mask_nothing
 
     std::size_t lower_bounding_x() const noexcept {return x_lower_;}
     std::size_t lower_bounding_y() const noexcept {return y_lower_;}
-    std::size_t upper_bounding_x() const noexcept {return x_upper_;}
-    std::size_t upper_bounding_y() const noexcept {return y_upper_;}
+    std::size_t upper_bounding_x() const noexcept {return x_upper_ - 1;}
+    std::size_t upper_bounding_y() const noexcept {return y_upper_ - 1;}
 
   private:
 
