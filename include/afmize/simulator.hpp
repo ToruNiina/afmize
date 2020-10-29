@@ -85,8 +85,9 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
     SimulatedAnnealingSimulator(const std::size_t total_step,
             const std::size_t   save,
             const std::uint32_t seed,
-            const Real sigma_x,  const Real sigma_y,
+            const Real sigma_x,  const Real sigma_y,  const Real sigma_z,
             const Real max_rotx, const Real max_roty, const Real max_rotz,
+            const Real max_dprobe_radius, const Real max_dprobe_angle,
             stage<Real>         ref,
             stage<Real>         stg,
             system<Real>        sys,
@@ -98,9 +99,12 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
           save_step_(save),
           sigma_dx_(sigma_x),
           sigma_dy_(sigma_y),
+          sigma_dz_(sigma_z),
           max_drotx_(max_rotx),
           max_droty_(max_roty),
           max_drotz_(max_rotz),
+          max_dprobe_radius_(max_dprobe_radius),
+          max_dprobe_angle_(max_dprobe_angle),
           rng_(seed),
           nrm_(0.0, 1.0),
           stg_(stg),
@@ -145,8 +149,13 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
     {
         if(this->step_ % save_step_ == 0)
         {
+            const auto p = obs_->get_probe();
             std::cerr << bar_.format(this->step_);
-            std::cout << "{\"step\":" << this->step_ << ", \"energy\":" << this->current_energy_ << "},\n" << std::endl;
+            std::cout << "{ \"step\":"   << this->step_
+                      << ", \"energy\":" << this->current_energy_
+                      << ", \"probe radius [nm]\":" << p.radius * 0.1
+                      << ", \"probe angle [deg]\":" << p.angle * 180.0 / 3.1416
+                      << "}," << std::endl;
         }
 
         const auto temperature = schedule_->temperature(step_);
@@ -156,6 +165,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
 
         const auto dx = nrm_(rng_) * sigma_dx_;
         const auto dy = nrm_(rng_) * sigma_dy_;
+//         const auto dz = nrm_(rng_) * sigma_dz_;
 //         std::cerr << "dxy = " << dx << ", " << dy << std::endl;
         this->try_translation(mave::vector<Real, 3>(dx, dy, 0.0), beta);
 
@@ -201,6 +211,11 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         mat(2, 2) = 1.0;
         this->try_rotation(mat, beta);
 
+        const auto drad = (this->generate_01() * 2.0 - 1.0) * max_dprobe_radius_;
+        const auto dang = (this->generate_01() * 2.0 - 1.0) * max_dprobe_angle_;
+
+        this->try_probe_change(drad, dang, beta);
+
         this->step_ += 1;
         return step_ < total_step_;
     }
@@ -224,6 +239,9 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
     Real& sigma_dy()        noexcept {return sigma_dy_;}
     Real  sigma_dy()  const noexcept {return sigma_dy_;}
 
+    Real& sigma_dz()        noexcept {return sigma_dz_;}
+    Real  sigma_dz()  const noexcept {return sigma_dz_;}
+
     Real& max_drotx()       noexcept {return max_drotx_;}
     Real  max_drotx() const noexcept {return max_drotx_;}
 
@@ -235,7 +253,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
 
   private:
 
-    void try_translation(const mave::vector<Real, 3>& dr, const Real beta)
+    void try_translation(mave::vector<Real, 3> dr, const Real beta)
     {
         next_ = sys_;
 
@@ -252,6 +270,14 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
            tmp_stg_.y_range().second < next_.bounding_box.upper[1])
         {
             return ;
+        }
+
+//         if(next_.bounding_box.lower[2] < 0.0)
+        {
+            const auto offset = next_.bounding_box.lower[2];
+            dr[2]                       -= offset;
+            next_.bounding_box.upper[2] -= offset;
+            next_.bounding_box.lower[2] -= offset;
         }
 
         // apply the movement
@@ -354,13 +380,16 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
             return ;
         }
 
-        // align the bottom to the xy plane (z=0.0)
-        for(auto& p : this->next_.particles)
+//         if(next_.bounding_box.lower[2] < 0.0)
         {
-            p.center[2] -= next_.bounding_box.lower[2];
+            // align the bottom to the xy plane (z=0.0)
+            for(auto& p : this->next_.particles)
+            {
+                p.center[2] -= next_.bounding_box.lower[2];
+            }
+            next_.bounding_box.upper[2] -= next_.bounding_box.lower[2];
+            next_.bounding_box.lower[2]  = 0.0;
         }
-        next_.bounding_box.upper[2] -= next_.bounding_box.lower[2];
-        next_.bounding_box.lower[2]  = 0.0;
 
         // update cell list
         next_.cells.construct(next_.particles, next_.bounding_box);
@@ -389,6 +418,54 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         return;
     }
 
+    void try_probe_change(const Real drad, const Real dang, const Real beta)
+    {
+        const auto current_probe = obs_->get_probe();
+        auto next_probe = current_probe;
+
+        next_probe.radius += drad;
+        if(next_probe.radius < 0)
+        {
+            next_probe.radius = current_probe.radius;
+        }
+        next_probe.angle  += dang;
+        if(next_probe.angle < 0)
+        {
+            next_probe.angle = 0;
+        }
+        else if(3.14159265 * 0.5 <= next_probe.angle)
+        {
+            next_probe.angle = 3.14159265 * 0.5;
+        }
+        obs_->update_probe(next_probe);
+
+        // generate pseudo AFM image
+        // bottom == 0 because the bottom object is aligned to 0.0.
+        obs_->observe(tmp_stg_, sys_);
+
+        // calculate score depending on score function
+        const auto energy = score_->calc(reference_, tmp_stg_, Mask(tmp_stg_, sys_));
+        const auto deltaE = energy - current_energy_;
+
+//         std::cerr << "beta = " << beta << ", dE = " << deltaE
+//                   << ", Enext = " << energy << ", Ecurr = " << current_energy_
+//                   << ", prob = " << std::exp(-deltaE * beta) << std::endl;
+
+        if(deltaE <= 0.0 || this->generate_01() < std::exp(-deltaE * beta))
+        {
+            // system is not updated
+            current_energy_ = energy;
+            stg_ = tmp_stg_;
+        }
+        else
+        {
+            // if energy increases, go back to the original probe
+            obs_->update_probe(current_probe);
+        }
+        return;
+    }
+
+
     Real generate_01() noexcept
     {
         return std::generate_canonical<Real, std::numeric_limits<Real>::digits>(rng_);
@@ -402,9 +479,13 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
 
     Real sigma_dx_;
     Real sigma_dy_;
+    Real sigma_dz_;
     Real max_drotx_;
     Real max_droty_;
     Real max_drotz_;
+
+    Real max_dprobe_radius_;
+    Real max_dprobe_angle_;
 
     std::mt19937                             rng_;
     std::normal_distribution<Real>           nrm_;
