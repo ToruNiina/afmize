@@ -72,6 +72,8 @@ struct ObserverBase
 {
     virtual ~ObserverBase() = default;
     virtual void observe(stage<Real>&, const system<Real>&) = 0;
+    virtual void update_probe(const default_probe<Real>&) = 0;
+    virtual default_probe<Real> get_probe() const = 0;
 };
 
 template<typename Real, bool Descritize>
@@ -197,6 +199,15 @@ struct RigidObserver: public ObserverBase<Real>
         }
         return;
     }
+
+    void update_probe(const default_probe<Real>& p) override
+    {
+        probe = p;
+        return ;
+    }
+
+    default_probe<Real> get_probe() const override {return probe;}
+
     default_probe<Real> probe;
 
   private:
