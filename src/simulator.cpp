@@ -49,6 +49,61 @@ void write_xyz(const std::string& basename, const system<Real>& sys)
 }
 
 template<typename Real>
+void write_tsv(const std::string& out, const stage<Real>& stg)
+{
+    using namespace std::literals::string_literals;
+    std::ofstream ofs(out);
+
+    for(std::size_t y=0; y<stg.y_pixel(); ++y)
+    {
+        for(std::size_t x=0; x<stg.x_pixel(); ++x)
+        {
+            ofs << "\t" << std::setprecision(6) << std::setw(10) << stg.at(x, y);
+        }
+        ofs << "\n";
+    }
+    return;
+}
+
+template<typename Real>
+void write_ppm(const stage<Real>& stg, const std::string& out,
+               const std::pair<Real, Real> height_range)
+{
+    using namespace std::literals::string_literals;
+    const auto min_elem = height_range.first;
+    const auto max_elem = height_range.second;
+
+    pnm::image<pnm::rgb_pixel> ppm(stg.x_pixel(), stg.y_pixel());
+    for(std::size_t i=0; i<stg.x_pixel() * stg.y_pixel(); ++i)
+    {
+        ppm.raw_access(i) =
+            color_afmhot<Real, pnm::rgb_pixel>(stg[i], min_elem, max_elem);
+    }
+
+    // origin of the image is upper left, but the physical origin is lower left.
+    // to make it consistent, it simply reverses the image.
+    pnm::image<pnm::rgb_pixel> reversed(ppm.x_size(), ppm.y_size());
+    for(std::size_t i = 0; i<ppm.y_size(); ++i)
+    {
+        reversed[ppm.y_size() - i - 1] = ppm[i];
+    }
+
+    pnm::write(out + ".ppm"s, reversed, pnm::format::ascii);
+    return;
+}
+
+template<typename Real>
+void write_ppm(const stage<Real>& stg, const std::string& out)
+{
+    const auto minmax = std::minmax_element(stg.begin(), stg.end());
+    const auto min_elem = *minmax.first;
+    const auto max_elem = *minmax.second;
+
+    write_ppm(stg, out, std::make_pair(min_elem, max_elem));
+    return;
+}
+
+template<typename Real>
 std::unique_ptr<ObserverBase<Real>> read_observation_method(const toml::value& sim)
 {
     constexpr Real pi         = Real(3.1415926535897932384626);
@@ -144,10 +199,18 @@ stage<Real> read_reference_image(const toml::value& sim, const stage<Real>& stg)
                                 answer.particles);
         answer.cells.construct(answer.particles, answer.bounding_box);
 
-        const auto obs = read_observation_method<Real>(sim);
+        auto obs = read_observation_method<Real>(sim);
+
+        default_probe<Real> p;
+        p.radius = 50.0; // 5 nm
+        p.angle  = 20.0 * 3.1416 / 180.0;
+        obs->update_probe(p);
+
         obs->observe(stage, answer);
 
         write_tsv("reference.tsv", stage);
+        write_ppm(stage, "reference.ppm");
+        write_xyz("reference", answer);
     }
     return stage;
 }
@@ -165,14 +228,18 @@ read_simulated_annealing_simulator(const toml::value& sim, stage<Real> stg, syst
 
     const auto sx = afmize::read_as_angstrom<Real>(toml::find(sim, "algorithm", "sigma_x"));
     const auto sy = afmize::read_as_angstrom<Real>(toml::find(sim, "algorithm", "sigma_y"));
+    const auto sz = afmize::read_as_angstrom<Real>(toml::find(sim, "algorithm", "sigma_z"));
     const auto rx = toml::find<Real>(sim, "algorithm", "maxrot_x") * deg_to_rad;
     const auto ry = toml::find<Real>(sim, "algorithm", "maxrot_y") * deg_to_rad;
     const auto rz = toml::find<Real>(sim, "algorithm", "maxrot_z") * deg_to_rad;
 
+    const auto pr = afmize::read_as_angstrom<Real>(toml::find(sim, "algorithm", "max_dradius"));
+    const auto pa = toml::find<Real>(sim, "algorithm", "max_dangle") * deg_to_rad;
+
     auto ref = read_reference_image(sim, stg);
 
     return std::make_unique<SimulatedAnnealingSimulator<Real, Mask>>(
-        steps, save_step, seed, sx, sy, rx, ry, rz,
+        steps, save_step, seed, sx, sy, sz, rx, ry, rz, pr, pa,
         std::move(ref),
         std::move(stg),
         std::move(init),
@@ -212,61 +279,6 @@ std::unique_ptr<SimulatorBase<Real>> read_simulator(const toml::value& config,
     }
 }
 
-template<typename Real>
-void write_tsv(const std::string& out, const stage<Real>& stg)
-{
-    using namespace std::literals::string_literals;
-    std::ofstream ofs(out);
-
-    for(std::size_t y=0; y<stg.y_pixel(); ++y)
-    {
-        for(std::size_t x=0; x<stg.x_pixel(); ++x)
-        {
-            ofs << "\t" << std::setprecision(6) << std::setw(10) << stg.at(x, y);
-        }
-        ofs << "\n";
-    }
-    return;
-}
-
-
-template<typename Real>
-void write_ppm(const stage<Real>& stg, const std::string& out,
-               const std::pair<Real, Real> height_range)
-{
-    using namespace std::literals::string_literals;
-    const auto min_elem = height_range.first;
-    const auto max_elem = height_range.second;
-
-    pnm::image<pnm::rgb_pixel> ppm(stg.x_pixel(), stg.y_pixel());
-    for(std::size_t i=0; i<stg.x_pixel() * stg.y_pixel(); ++i)
-    {
-        ppm.raw_access(i) =
-            color_afmhot<Real, pnm::rgb_pixel>(stg[i], min_elem, max_elem);
-    }
-
-    // origin of the image is upper left, but the physical origin is lower left.
-    // to make it consistent, it simply reverses the image.
-    pnm::image<pnm::rgb_pixel> reversed(ppm.x_size(), ppm.y_size());
-    for(std::size_t i = 0; i<ppm.y_size(); ++i)
-    {
-        reversed[ppm.y_size() - i - 1] = ppm[i];
-    }
-
-    pnm::write(out + ".ppm"s, reversed, pnm::format::ascii);
-    return;
-}
-
-template<typename Real>
-void write_ppm(const stage<Real>& stg, const std::string& out)
-{
-    const auto minmax = std::minmax_element(stg.begin(), stg.end());
-    const auto min_elem = *minmax.first;
-    const auto max_elem = *minmax.second;
-
-    write_ppm(stg, out, std::make_pair(min_elem, max_elem));
-    return;
-}
 } // afmize
 
 int main(int argc, char** argv)
@@ -387,6 +399,15 @@ int main(int argc, char** argv)
     }
     auto sim = afmize::read_simulator(config, std::move(stg), std::move(sys));
 
+    {
+        // clear file content
+        std::ofstream ofs(output_basename + ".xyz");
+        // write the first state
+        afmize::write_xyz(output_basename, sim->current_state());
+        afmize::write_ppm(sim->current_image(), output_basename + "_0");
+        afmize::write_tsv(output_basename + "_0.tsv", sim->current_image());
+    }
+
     const auto save_step = toml::find<std::size_t>(config, "simulator", "algorithm", "output");
     while(sim->step())
     {
@@ -394,10 +415,15 @@ int main(int argc, char** argv)
         {
             const auto fname = output_basename + "_"+ std::to_string(sim->current_step());
             afmize::write_ppm(sim->current_image(), fname);
-            afmize::write_xyz(fname, sim->current_state());
             afmize::write_tsv(fname + ".tsv", sim->current_image());
+            afmize::write_xyz(output_basename, sim->current_state());
         }
     }
-    afmize::write_xyz(output_basename, sim->current_state());
+    {
+        const auto fname = output_basename + "_"+ std::to_string(sim->current_step());
+        afmize::write_ppm(sim->current_image(), fname);
+        afmize::write_tsv(fname + ".tsv", sim->current_image());
+        afmize::write_xyz(output_basename, sim->current_state());
+    }
     return 0;
 }
