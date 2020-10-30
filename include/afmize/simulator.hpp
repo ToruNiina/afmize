@@ -125,6 +125,8 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         sys_.cells.construct(sys_.particles, sys_.bounding_box);
         obs_->observe(stg_, sys_);
         current_energy_ = score_->calc(reference_, stg_, Mask(stg_, sys_));
+
+        std::cout << "# step energy radius[nm] angle[degree]\n";
     }
     ~SimulatedAnnealingSimulator() override = default;
 
@@ -151,11 +153,11 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         {
             const auto p = obs_->get_probe();
             std::cerr << bar_.format(this->step_);
-            std::cout << "{ \"step\":"   << this->step_
-                      << ", \"energy\":" << this->current_energy_
-                      << ", \"probe radius [nm]\":" << p.radius * 0.1
-                      << ", \"probe angle [deg]\":" << p.angle * 180.0 / 3.1416
-                      << "}," << std::endl;
+            std::cout << this->step_
+                      << " " << this->current_energy_
+                      << " " << p.radius * 0.1
+                      << " " << p.angle * 180.0 / 3.1416
+                      << "\n";
         }
 
         const auto temperature = schedule_->temperature(step_);
