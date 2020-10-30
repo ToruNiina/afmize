@@ -24,7 +24,7 @@ struct SimulatorBase
 
     virtual system<Real> const& current_state() const noexcept = 0;
     virtual system<Real>&       current_state()       noexcept = 0;
-    virtual stage<Real> const&  current_image() const noexcept = 0;
+    virtual image<Real> const&  current_image() const noexcept = 0;
 };
 
 template<typename Real>
@@ -88,8 +88,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
             const Real sigma_x,  const Real sigma_y,  const Real sigma_z,
             const Real max_rotx, const Real max_roty, const Real max_rotz,
             const Real max_dprobe_radius, const Real max_dprobe_angle,
-            stage<Real>         ref,
-            stage<Real>         stg,
+            image<Real>         ref,
             system<Real>        sys,
             std::unique_ptr<ObserverBase<Real>> obs,
             std::unique_ptr<ScoreBase<Real, Mask>> score,
@@ -107,8 +106,8 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
           max_dprobe_angle_(max_dprobe_angle),
           rng_(seed),
           nrm_(0.0, 1.0),
-          stg_(stg),
-          tmp_stg_(std::move(stg)),
+          img_(sys.stage_info.create_image()),
+          tmp_img_(sys.stage_info.create_image()),
           reference_(std::move(ref)),
           sys_(sys),
           next_(sys),
@@ -120,11 +119,12 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         // FIXME
         // - split stage into image and resolution info
         // - move resolution information to system
-        sys_.cells.initialize(stg_.x_resolution(), stg_.y_resolution(),
+        sys_.cells.initialize(sys.stage_info.x_resolution(),
+                              sys.stage_info.y_resolution(),
                               sys.particles);
         sys_.cells.construct(sys_.particles, sys_.bounding_box);
-        obs_->observe(stg_, sys_);
-        current_energy_ = score_->calc(reference_, stg_, Mask(stg_, sys_));
+        obs_->observe(img_, sys_);
+        current_energy_ = score_->calc(reference_, img_, Mask(sys_));
 
         std::cout << "# step energy radius[nm] angle[degree]\n";
     }
@@ -225,9 +225,9 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
     system<Real> const& current_state() const noexcept override {return sys_;}
     system<Real>&       current_state()       noexcept override {return sys_;}
 
-    stage<Real> const& current_image() const noexcept override
+    image<Real> const& current_image() const noexcept override
     {
-        return stg_;
+        return img_;
     }
 
     std::unique_ptr<ObserverBase<Real>>& observer() noexcept {return obs_;}
@@ -266,10 +266,10 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         // avoid particle from escaping observation stage.
         // To fix the number of pixels when calculating score, it does not
         // allow particle sticks out of the stage region.
-        if(next_.bounding_box.lower[0] < tmp_stg_.x_range().first  ||
-           next_.bounding_box.lower[1] < tmp_stg_.y_range().first  ||
-           tmp_stg_.x_range().second < next_.bounding_box.upper[0] ||
-           tmp_stg_.y_range().second < next_.bounding_box.upper[1])
+        if(next_.bounding_box.lower[0] < sys_.stage_info.x_range().first  ||
+           next_.bounding_box.lower[1] < sys_.stage_info.y_range().first  ||
+           sys_.stage_info.x_range().second < next_.bounding_box.upper[0] ||
+           sys_.stage_info.y_range().second < next_.bounding_box.upper[1])
         {
             return ;
         }
@@ -293,10 +293,10 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
 
         // generate pseudo AFM image
         // bottom == 0 because the bottom object is aligned to 0.0.
-        obs_->observe(tmp_stg_, next_);
+        obs_->observe(tmp_img_, next_);
 
         // calculate score depending on score function
-        const auto energy = score_->calc(reference_, tmp_stg_, Mask(tmp_stg_, sys_));
+        const auto energy = score_->calc(reference_, tmp_img_, Mask(sys_));
         const auto deltaE = energy - current_energy_;
 
 //         std::cerr << "beta = " << beta << ", dE = " << deltaE
@@ -307,7 +307,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         {
             sys_ = next_;
             current_energy_ = energy;
-            stg_ = tmp_stg_;
+            img_ = tmp_img_;
         }
         return;
     }
@@ -374,10 +374,10 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         next_.bounding_box = make_bounding_box(next_.particles);
 
         // avoid particle from escaping observation stage
-        if(next_.bounding_box.lower[0] < tmp_stg_.x_range().first  ||
-           next_.bounding_box.lower[1] < tmp_stg_.y_range().first  ||
-           tmp_stg_.x_range().second < next_.bounding_box.upper[0] ||
-           tmp_stg_.y_range().second < next_.bounding_box.upper[1])
+        if(next_.bounding_box.lower[0] < sys_.stage_info.x_range().first  ||
+           next_.bounding_box.lower[1] < sys_.stage_info.y_range().first  ||
+           sys_.stage_info.x_range().second < next_.bounding_box.upper[0] ||
+           sys_.stage_info.y_range().second < next_.bounding_box.upper[1])
         {
             return ;
         }
@@ -398,10 +398,10 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
 
         // generate pseudo AFM image
         // bottom == 0 because the bottom object is aligned to 0.0.
-        obs_->observe(tmp_stg_, next_);
+        obs_->observe(tmp_img_, next_);
 
         // calculate score depending on score function
-        const auto energy = score_->calc(reference_, tmp_stg_, Mask(tmp_stg_, sys_));
+        const auto energy = score_->calc(reference_, tmp_img_, Mask(sys_));
         const auto deltaE = energy - current_energy_;
 
 //         std::cerr << "beta = " << beta << ", dE = " << deltaE
@@ -415,7 +415,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         {
             sys_ = next_;
             current_energy_ = energy;
-            stg_ = tmp_stg_;
+            img_ = tmp_img_;
         }
         return;
     }
@@ -443,10 +443,10 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
 
         // generate pseudo AFM image
         // bottom == 0 because the bottom object is aligned to 0.0.
-        obs_->observe(tmp_stg_, sys_);
+        obs_->observe(tmp_img_, sys_);
 
         // calculate score depending on score function
-        const auto energy = score_->calc(reference_, tmp_stg_, Mask(tmp_stg_, sys_));
+        const auto energy = score_->calc(reference_, tmp_img_, Mask(sys_));
         const auto deltaE = energy - current_energy_;
 
 //         std::cerr << "beta = " << beta << ", dE = " << deltaE
@@ -457,7 +457,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         {
             // system is not updated
             current_energy_ = energy;
-            stg_ = tmp_stg_;
+            img_ = tmp_img_;
         }
         else
         {
@@ -491,9 +491,9 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
 
     std::mt19937                             rng_;
     std::normal_distribution<Real>           nrm_;
-    stage<Real>                              stg_;
-    stage<Real>                          tmp_stg_;
-    stage<Real>                        reference_;
+    image<Real>                              img_;
+    image<Real>                          tmp_img_;
+    image<Real>                        reference_;
     system<Real>                             sys_;
     system<Real>                            next_;
     std::unique_ptr<ObserverBase<Real>>      obs_;
