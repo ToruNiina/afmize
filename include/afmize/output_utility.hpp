@@ -77,7 +77,7 @@ void write_ppm(const std::string& out, const image<Real>& img)
     const auto min_elem = *minmax.first;
     const auto max_elem = *minmax.second;
 
-    write_ppm(img, out, std::make_pair(min_elem, max_elem));
+    write_ppm(out, img, std::make_pair(min_elem, max_elem));
     return;
 }
 
