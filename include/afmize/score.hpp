@@ -1,6 +1,6 @@
 #ifndef AFMIZE_SCORE_HPP
 #define AFMIZE_SCORE_HPP
-#include "stage.hpp"
+#include "image.hpp"
 #include "mask.hpp"
 
 namespace afmize
@@ -10,7 +10,7 @@ template<typename Real, typename Mask>
 struct ScoreBase
 {
     virtual ~ScoreBase() = default;
-    virtual Real calc(const stage<Real>&, const stage<Real>&, const Mask&) const = 0;
+    virtual Real calc(const image<Real>&, const image<Real>&, const Mask&) const = 0;
 };
 
 template<typename Real, typename Mask>
@@ -21,7 +21,7 @@ struct NegativeCosineSimilarity: public ScoreBase<Real, Mask>
     explicit NegativeCosineSimilarity(const Real k_): k(k_) {}
     ~NegativeCosineSimilarity() override = default;
 
-    Real calc(const stage<Real>& lhs, const stage<Real>& rhs, const Mask& mask) const override
+    Real calc(const image<Real>& lhs, const image<Real>& rhs, const Mask& mask) const override
     {
         Real numer  = 0;
         Real denom1 = 0;
@@ -54,7 +54,7 @@ struct RootMeanSquareDeviation: public ScoreBase<Real, Mask>
     explicit RootMeanSquareDeviation(const Real k_): k(k_) {}
     ~RootMeanSquareDeviation() override = default;
 
-    Real calc(const stage<Real>& lhs, const stage<Real>& rhs, const Mask& mask) const override
+    Real calc(const image<Real>& lhs, const image<Real>& rhs, const Mask& mask) const override
     {
         std::uint64_t N = 0;
         Real sd = 0.0;
