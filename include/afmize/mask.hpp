@@ -12,9 +12,9 @@ namespace afmize
 template<typename Real>
 struct mask_nothing
 {
-    explicit mask_nothing(const stage<Real>& stage_info, const system<Real>&)
+    explicit mask_nothing(const system<Real>& sys)
         : x_lower_(0), y_lower_(0),
-          x_upper_(stage_info.x_pixel()), y_upper_(stage_info.y_pixel())
+          x_upper_(sys.stage_info.x_pixel()), y_upper_(sys.stage_info.y_pixel())
     {}
 
     constexpr bool operator()(const std::size_t, const std::size_t) const noexcept
@@ -39,8 +39,8 @@ template<typename Real>
 struct mask_by_rectangle
 {
     // here, to make the area uniform, it uses sphere first
-    mask_by_rectangle(const stage<Real>& stage_info, const system<Real>& mol)
-        : mask_by_rectangle(stage_info, sphere<Real>{mol.bounding_radius,
+    mask_by_rectangle(const system<Real>& mol)
+        : mask_by_rectangle(mol, sphere<Real>{mol.bounding_radius,
             std::accumulate(
                 mol.particles.begin(), mol.particles.end(), mave::vector<Real, 3>(0,0,0),
                 [](const mave::vector<Real, 3>& s, const sphere<Real>& p) noexcept {
@@ -49,21 +49,21 @@ struct mask_by_rectangle
             })
     {}
 
-    mask_by_rectangle(const stage<Real>& stage_info, const sphere<Real>& mol)
+    mask_by_rectangle(const system<Real>& mol, const sphere<Real>& bs)
     {
-        const std::int64_t hw_x = std::ceil(mol.radius / stage_info.x_resolution());
-        const std::int64_t hw_y = std::ceil(mol.radius / stage_info.x_resolution());
+        const std::int64_t hw_x = std::ceil(bs.radius / mol.stage_info.x_resolution());
+        const std::int64_t hw_y = std::ceil(bs.radius / mol.stage_info.x_resolution());
 
-        const Real stage_lw_x = stage_info.x_range().first;
-        const Real stage_lw_y = stage_info.y_range().first;
+        const Real stage_lw_x = mol.stage_info.x_range().first;
+        const Real stage_lw_y = mol.stage_info.y_range().first;
 
-        const std::int64_t xth = std::ceil((mol.center[0] - stage_lw_x) / stage_info.x_resolution());
-        const std::int64_t yth = std::ceil((mol.center[1] - stage_lw_y) / stage_info.y_resolution());
+        const std::int64_t xth = std::ceil((bs.center[0] - stage_lw_x) / mol.stage_info.x_resolution());
+        const std::int64_t yth = std::ceil((bs.center[1] - stage_lw_y) / mol.stage_info.y_resolution());
         // both ends are included
         this->x_lower_ = std::max<std::int64_t>(0, xth - hw_x);
-        this->x_upper_ = std::min<std::int64_t>(stage_info.x_pixel()-1, xth + hw_x);
+        this->x_upper_ = std::min<std::int64_t>(mol.stage_info.x_pixel()-1, xth + hw_x);
         this->y_lower_ = std::max<std::int64_t>(0, yth - hw_y);
-        this->y_upper_ = std::min<std::int64_t>(stage_info.y_pixel()-1, yth + hw_y);
+        this->y_upper_ = std::min<std::int64_t>(mol.stage_info.y_pixel()-1, yth + hw_y);
     }
 
     bool operator()(const std::size_t x, const std::size_t y) const noexcept
