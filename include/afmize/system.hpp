@@ -1,7 +1,8 @@
 #ifndef AFMIZE_SYSTEM_HPP
 #define AFMIZE_SYSTEM_HPP
-#include <afmize/shapes.hpp>
-#include <afmize/cell_list.hpp>
+#include "cell_list.hpp"
+#include "shapes.hpp"
+#include "stage.hpp"
 #include <vector>
 
 namespace afmize
@@ -10,8 +11,10 @@ namespace afmize
 template<typename Real>
 struct system
 {
-    explicit system(std::pair<std::vector<std::string>, std::vector<sphere<Real>>> mol)
-        : max_radius(0), particles(std::move(mol.second)), names(std::move(mol.first))
+    explicit system(std::pair<std::vector<std::string>, std::vector<sphere<Real>>> mol,
+                    stage<Real> stg)
+        : max_radius(0), particles(std::move(mol.second)), names(std::move(mol.first)),
+          stage(std::move(stg))
     {
         max_radius = particles.front().radius;
         this->bounding_box = make_aabb(particles.front());
@@ -32,6 +35,7 @@ struct system
     aabb<Real>                bounding_box;
     std::vector<sphere<Real>> particles;
     std::vector<std::string>  names;
+    stage<Real>               stage;
     cell_list<Real>           cells;
 };
 
