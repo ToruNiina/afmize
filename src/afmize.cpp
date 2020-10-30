@@ -5,6 +5,7 @@
 #include <afmize/xyz_reader.hpp>
 #include <afmize/pdb_reader.hpp>
 #include <afmize/input_utility.hpp>
+#include <afmize/output_utility.hpp>
 #include <afmize/progress_bar.hpp>
 #include <afmize/observe.hpp>
 #include <limits>
@@ -89,156 +90,6 @@ struct output_format_flags
     bool ppm;
     bool svg;
 };
-
-template<typename Real>
-void write_json(const stage<Real>& stg, const std::string& out)
-{
-    using namespace std::literals::string_literals;
-
-    std::ofstream ofs(out + ".json");
-    ofs << "{\n\t\"resolution\":{\"x\":" << stg.x_resolution()
-        << ", \"y\":" << stg.y_resolution()
-        << ", \"z\":" << stg.z_resolution() << "},\n";
-    ofs << "\t\"height\":[\n";
-    for(std::size_t j=0; j<stg.y_pixel(); ++j)
-    {
-        for(std::size_t i=0; i<stg.x_pixel(); ++i)
-        {
-            const auto p = stg.position_at(i, j);
-            ofs << "\t\t{\"x\":" << p[0] << ", \"y\":" << p[1] << ", \"z\":" << p[2] << "}";
-            if(j == stg.y_pixel()-1 && i == stg.x_pixel()-1) {ofs << "\n";}
-            else {ofs << ",\n";}
-        }
-    }
-    ofs << "\t]\n}";
-    return;
-}
-
-template<typename Real>
-void write_csv(const stage<Real>& stg, const std::string& out)
-{
-    using namespace std::literals::string_literals;
-
-    std::ofstream ofs(out + ".csv");
-    for(std::size_t j=0; j<stg.y_pixel(); ++j)
-    {
-        for(std::size_t i=0; i<stg.x_pixel(); ++i)
-        {
-            ofs << stg(i, j);
-            if(i+1 != stg.x_pixel()) {ofs << ',';}
-        }
-        ofs << '\n';
-    }
-    return;
-}
-
-template<typename Real>
-void write_ppm(const stage<Real>& stg, const std::string& out,
-               const std::pair<Real, Real> height_range)
-{
-    using namespace std::literals::string_literals;
-    const auto min_elem = height_range.first;
-    const auto max_elem = height_range.second;
-
-    pnm::image<pnm::rgb_pixel> ppm(stg.x_pixel(), stg.y_pixel());
-    for(std::size_t i=0; i<stg.x_pixel() * stg.y_pixel(); ++i)
-    {
-        ppm.raw_access(i) =
-            color_afmhot<Real, pnm::rgb_pixel>(stg[i], min_elem, max_elem);
-    }
-
-    // origin of the image is upper left, but the physical origin is lower left.
-    // to make it consistent, it simply reverses the image.
-    pnm::image<pnm::rgb_pixel> reversed(ppm.x_size(), ppm.y_size());
-    for(std::size_t i = 0; i<ppm.y_size(); ++i)
-    {
-        reversed[ppm.y_size() - i - 1] = ppm[i];
-    }
-
-    pnm::write(out + ".ppm"s, reversed, pnm::format::binary);
-    return;
-}
-
-template<typename Real>
-void write_ppm(const stage<Real>& stg, const std::string& out)
-{
-    const auto minmax = std::minmax_element(stg.begin(), stg.end());
-    const auto min_elem = *minmax.first;
-    const auto max_elem = *minmax.second;
-
-    write_ppm(stg, out, std::make_pair(min_elem, max_elem));
-    return;
-}
-
-
-template<typename Real>
-void write_svg(const stage<Real>& stg, const std::string& out,
-               const Real scale_bar, const std::pair<Real, Real> height_range)
-{
-    using namespace std::literals::string_literals;
-    std::ofstream svg(out + ".svg");
-    if(!svg.good())
-    {
-        throw std::runtime_error("file open error: " + out);
-    }
-
-    const auto img_width  = stg.x_pixel() * stg.x_resolution();
-    const auto img_height = stg.y_pixel() * stg.y_resolution();
-
-    svg << "<svg width=\"" << img_width << "\" height=\"" << img_height << "\">\n";
-
-    const auto minv = height_range.first;
-    const auto maxv = height_range.second;
-
-    for(std::size_t yi=0; yi<stg.y_pixel(); ++yi)
-    {
-        // origin of the image is upper left, but the physical origin is lower left.
-        // it makes the image physically "correct" (here, correct means top-view)
-        const auto y_pos = (stg.y_pixel() - yi - 1) * stg.y_resolution();
-        for(std::size_t xi=0; xi<stg.x_pixel(); ++xi)
-        {
-            const auto x_pos = xi * stg.x_resolution();
-            const auto color = color_afmhot<Real>(stg.at(xi, yi), minv, maxv);
-            svg << "<rect x=\""   << x_pos << "\" y=\"" << y_pos
-                << "\" width=\""  << stg.x_resolution()
-                << "\" height=\"" << stg.y_resolution() << "\" style=\""
-                << "fill:rgb(" << static_cast<int>(color.red)   << ','
-                               << static_cast<int>(color.green) << ','
-                               << static_cast<int>(color.blue)
-                << ");stroke:none\"/>\n";
-        }
-    }
-
-    if(scale_bar != Real(0.0))
-    {
-        const auto sb_width  = scale_bar;
-        const auto sb_height = std::max(stg.y_resolution() * 0.5, img_height * 0.01);
-
-        const auto buf_x = img_width  * 0.05;
-        const auto buf_y = img_height * 0.05;
-
-        const auto sb_left = img_width  - buf_x - sb_width;
-        const auto sb_up   = img_height - buf_y - sb_height;
-
-        // scale bar
-        svg << "<rect x=\""   << sb_left  << "\" y=\""      << sb_up
-            << "\" width=\""  << sb_width << "\" height=\"" << sb_height
-            << "\" style=\"fill:white;stroke:none\"/>\n";
-    }
-    svg << "</svg>\n";
-    return;
-}
-
-template<typename Real>
-void write_svg(const stage<Real>& stg, const std::string& out,
-               const Real scale_bar)
-{
-    const auto minmax = std::minmax_element(stg.begin(), stg.end());
-    const auto minv = *minmax.first;
-    const auto maxv = *minmax.second;
-    write_svg(stg, out, scale_bar, std::make_pair(minv, maxv));
-    return;
-}
 
 
 } // afmize
@@ -409,6 +260,7 @@ int main(int argc, char** argv)
         );
 
     std::cerr << "done. creating image..." << std::endl;
+    auto img = stg.create_image();
     try
     {
         std::size_t index = 0;
@@ -430,30 +282,30 @@ int main(int argc, char** argv)
                     }
                 }
                 return sys;
-            }(afmize::system<Real>(reader->read_snapshot()));
+            }(afmize::system<Real>(reader->read_snapshot(), stg));
 
             const Real bottom = std::isnan(stage_position) ?
                                 sys.bounding_box.lower[2] : stage_position;
 
             const Real initial_z = sys.bounding_box.upper[2] + probe.radius;
 
-            for(std::size_t j=0; j<stg.y_pixel(); ++j)
+            for(std::size_t j=0; j<img.y_pixel(); ++j)
             {
-                for(std::size_t i=0; i<stg.x_pixel(); ++i)
+                for(std::size_t i=0; i<img.x_pixel(); ++i)
                 {
-                    probe.apex    = stg.position_at(i, j);
+                    probe.apex    = sys.stage_info.position_at(i, j);
                     probe.apex[2] = initial_z;
 
                     if(method == "rigid")
                     {
-                        stg(i, j) = afmize::discretize(
+                        img(i, j) = afmize::discretize(
                             afmize::collide_at(sys, probe, bottom),
-                            stg.z_resolution(),
+                            sys.stage_info.z_resolution(),
                             bottom);
                     }
                     else if(method == "smooth")
                     {
-                        stg(i, j) = afmize::smooth_at(sys, probe.apex, bottom,
+                        img(i, j) = afmize::smooth_at(sys, probe.apex, bottom,
                                                       gamma, sigma_x, sigma_y);
                     }
                     else
@@ -483,34 +335,34 @@ int main(int argc, char** argv)
 
             if(output_formats.csv)
             {
-                afmize::write_csv (stg, outname);
+                afmize::write_csv (outname, img);
             }
 
             if(output_formats.json)
             {
-                afmize::write_json(stg, outname);
+                afmize::write_json(outname, img, sys);
             }
 
             if(std::isnan(cmap_min) || std::isnan(cmap_max))
             {
                 if(output_formats.ppm)
                 {
-                    afmize::write_ppm (stg, outname);
+                    afmize::write_ppm (outname, img);
                 }
                 if(output_formats.svg)
                 {
-                    afmize::write_svg (stg, outname, scale_bar_length);
+                    afmize::write_svg (outname, img, sys, scale_bar_length);
                 }
             }
             else
             {
                 if(output_formats.ppm)
                 {
-                    afmize::write_ppm(stg, outname, std::make_pair(cmap_min, cmap_max));
+                    afmize::write_ppm(outname, img, std::make_pair(cmap_min, cmap_max));
                 }
                 if(output_formats.svg)
                 {
-                    afmize::write_svg(stg, outname, scale_bar_length,
+                    afmize::write_svg(outname, img, sys, scale_bar_length,
                                       std::make_pair(cmap_min, cmap_max));
                 }
             }

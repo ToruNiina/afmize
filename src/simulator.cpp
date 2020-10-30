@@ -102,16 +102,16 @@ read_temperature_schedule(const toml::value& sim)
 }
 
 template<typename Real>
-stage<Real> read_reference_image(const toml::value& sim, const stage<Real>& stg)
+image<Real> read_reference_image(const toml::value& sim, const stage<Real>& stg)
 {
-    stage<Real>  stage(stg);
     const auto refname = toml::find<std::string>(sim, "image", "reference");
+    image<Real> img = stg.create_image();
 
     if(refname.substr(refname.size() - 4, 4) == ".pdb" ||
        refname.substr(refname.size() - 4, 4) == ".xyz")
     {
         // generate reference image
-        system<Real> answer(open_file<Real>(refname)->read_snapshot());
+        system<Real> answer(open_file<Real>(refname)->read_snapshot(), stg);
 
         if(answer.bounding_box.lower[2] != 0)
         {
@@ -124,7 +124,7 @@ stage<Real> read_reference_image(const toml::value& sim, const stage<Real>& stg)
             answer.bounding_box.upper -= offset;
         }
 
-        answer.cells.initialize(stage.x_resolution(), stage.y_resolution(),
+        answer.cells.initialize(stg.x_resolution(), stg.y_resolution(),
                                 answer.particles);
         answer.cells.construct(answer.particles, answer.bounding_box);
 
@@ -135,18 +135,18 @@ stage<Real> read_reference_image(const toml::value& sim, const stage<Real>& stg)
         p.angle  = 20.0 * 3.1416 / 180.0;
         obs->update_probe(p);
 
-        obs->observe(stage, answer);
+        obs->observe(img, answer);
 
-        write_tsv("reference", stage);
-        write_ppm("reference", stage);
+        write_tsv("reference", img);
+        write_ppm("reference", img);
         write_xyz("reference", answer);
     }
-    return stage;
+    return img;
 }
 
 template<typename Real, typename Mask>
 std::unique_ptr<SimulatedAnnealingSimulator<Real, Mask>>
-read_simulated_annealing_simulator(const toml::value& sim, stage<Real> stg, system<Real> init)
+read_simulated_annealing_simulator(const toml::value& sim, system<Real> init)
 {
     constexpr Real pi         = Real(3.1415926535897932384626);
     constexpr Real deg_to_rad = pi / Real(180.0);
@@ -165,12 +165,11 @@ read_simulated_annealing_simulator(const toml::value& sim, stage<Real> stg, syst
     const auto pr = afmize::read_as_angstrom<Real>(toml::find(sim, "algorithm", "max_dradius"));
     const auto pa = toml::find<Real>(sim, "algorithm", "max_dangle") * deg_to_rad;
 
-    auto ref = read_reference_image(sim, stg);
+    auto ref = read_reference_image(sim, init.stage_info);
 
     return std::make_unique<SimulatedAnnealingSimulator<Real, Mask>>(
         steps, save_step, seed, sx, sy, sz, rx, ry, rz, pr, pa,
         std::move(ref),
-        std::move(stg),
         std::move(init),
         read_observation_method<Real>(sim),
         read_score_function<Real, Mask>(sim),
@@ -178,8 +177,8 @@ read_simulated_annealing_simulator(const toml::value& sim, stage<Real> stg, syst
 }
 
 template<typename Real>
-std::unique_ptr<SimulatorBase<Real>> read_simulator(const toml::value& config,
-        stage<Real> stg, system<Real> init)
+std::unique_ptr<SimulatorBase<Real>>
+read_simulator(const toml::value& config, system<Real> init)
 {
     const auto& sim = toml::find(config, "simulator");
     const auto algo = toml::find<std::string>(sim, "algorithm", "method");
@@ -190,12 +189,12 @@ std::unique_ptr<SimulatorBase<Real>> read_simulator(const toml::value& config,
         if(mask == "rectangular")
         {
             return read_simulated_annealing_simulator<Real, mask_by_rectangle<Real>>(
-                    sim, std::move(stg), std::move(init));
+                    sim, std::move(init));
         }
         else if(mask == "none")
         {
             return read_simulated_annealing_simulator<Real, mask_nothing<Real>>(
-                    sim, std::move(stg), std::move(init));
+                    sim, std::move(init));
         }
         else
         {
@@ -326,7 +325,7 @@ int main(int argc, char** argv)
         sys.bounding_box.lower -= offset;
         sys.bounding_box.upper -= offset;
     }
-    auto sim = afmize::read_simulator(config, std::move(stg), std::move(sys));
+    auto sim = afmize::read_simulator(config, std::move(sys));
 
     {
         // clear file content
