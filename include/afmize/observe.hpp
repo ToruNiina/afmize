@@ -71,7 +71,7 @@ template<typename Real>
 struct ObserverBase
 {
     virtual ~ObserverBase() = default;
-    virtual void observe(stage<Real>&, const system<Real>&) = 0;
+    virtual void observe(image<Real>&, const system<Real>&) = 0;
     virtual void update_probe(const default_probe<Real>&) = 0;
     virtual default_probe<Real> get_probe() const = 0;
 };
@@ -85,18 +85,18 @@ struct RigidObserver: public ObserverBase<Real>
     ~RigidObserver() override = default;
 
     // here we assume the stage locates z == 0.
-    void observe(stage<Real>& stg, const system<Real>& sys) override
+    void observe(image<Real>& img, const system<Real>& sys) override
     {
         // to skip pixels, we first calculate aabb of the probe at the
         const Real max_frustum_radius = probe.radius +
             std::tan(probe.angle) * (sys.bounding_box.upper[2] - probe.radius);
 
         const Real initial_z = sys.bounding_box.upper[2] + probe.radius;
-        for(std::size_t j=0; j<stg.y_pixel(); ++j)
+        for(std::size_t j=0; j<sys.stage_info.y_pixel(); ++j)
         {
-        for(std::size_t i=0; i<stg.x_pixel(); ++i)
+        for(std::size_t i=0; i<sys.stage_info.x_pixel(); ++i)
         {
-            probe.apex    = stg.position_at(i, j);
+            probe.apex    = sys.stage_info.position_at(i, j);
             probe.apex[2] = initial_z;
 
             aabb<Real> probe_aabb;
@@ -110,7 +110,7 @@ struct RigidObserver: public ObserverBase<Real>
 
             if( ! collides_with(probe_aabb, sys.bounding_box))
             {
-                stg(i, j) = 0.0;
+                img(i, j) = 0.0;
                 continue;
             }
 
@@ -189,11 +189,11 @@ struct RigidObserver: public ObserverBase<Real>
 
             if (Descritize)
             {
-                stg(i, j) = afmize::discretize(min_height, stg.z_resolution(), Real(0));
+                img(i, j) = afmize::discretize(min_height, sys.stage_info.z_resolution(), Real(0));
             }
             else
             {
-                stg(i, j) = min_height;
+                img(i, j) = min_height;
             }
         }
         }
