@@ -1,6 +1,7 @@
 #ifndef AFMIZE_STAGE_HPP
 #define AFMIZE_STAGE_HPP
 #include <mave/mave/mave.hpp>
+#include "image.hpp"
 #include <vector>
 #include <cassert>
 
@@ -8,7 +9,7 @@ namespace afmize
 {
 
 //
-// Stage is a map from (x, y) to z.
+// stage information such as resolution and range
 //
 template<typename Real>
 struct stage
@@ -40,6 +41,11 @@ struct stage
         return std::make_pair(
             static_cast<std::int64_t>(std::floor((pos[0] - x_lower_) * x_rreso_)),
             static_cast<std::int64_t>(std::floor((pos[1] - y_lower_) * y_rreso_)));
+    }
+
+    image<Real> create_image() const
+    {
+        return image<Real>(x_pixels_, y_pixels_);
     }
 
     Real x_resolution() const noexcept {return this->x_reso_;}
