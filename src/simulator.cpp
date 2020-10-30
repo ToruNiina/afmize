@@ -4,6 +4,7 @@
 #include <afmize/pdb_reader.hpp>
 #include <afmize/xyz_reader.hpp>
 #include <afmize/input_utility.hpp>
+#include <afmize/output_utility.hpp>
 #include <afmize/colormap.hpp>
 
 namespace afmize
@@ -29,78 +30,6 @@ open_file(const std::string& fname)
     {
         throw std::runtime_error("afmize supports only pdb or xyz");
     }
-}
-
-template<typename Real>
-void write_xyz(const std::string& basename, const system<Real>& sys)
-{
-    std::ofstream ofs(basename + ".xyz", std::ios_base::app);
-    ofs << sys.particles.size() << "\n\n";
-    for(std::size_t i=0; i<sys.particles.size(); ++i)
-    {
-        const auto pos = sys.particles.at(i).center;
-        ofs << std::setw(6) << sys.names.at(i) << ' '
-            << std::setprecision(6) << std::setw(10) << pos[0]
-            << std::setprecision(6) << std::setw(10) << pos[1]
-            << std::setprecision(6) << std::setw(10) << pos[2]
-            << '\n';
-    }
-    return ;
-}
-
-template<typename Real>
-void write_tsv(const std::string& out, const stage<Real>& stg)
-{
-    using namespace std::literals::string_literals;
-    std::ofstream ofs(out);
-
-    for(std::size_t y=0; y<stg.y_pixel(); ++y)
-    {
-        for(std::size_t x=0; x<stg.x_pixel(); ++x)
-        {
-            ofs << "\t" << std::setprecision(6) << std::setw(10) << stg.at(x, y);
-        }
-        ofs << "\n";
-    }
-    return;
-}
-
-template<typename Real>
-void write_ppm(const stage<Real>& stg, const std::string& out,
-               const std::pair<Real, Real> height_range)
-{
-    using namespace std::literals::string_literals;
-    const auto min_elem = height_range.first;
-    const auto max_elem = height_range.second;
-
-    pnm::image<pnm::rgb_pixel> ppm(stg.x_pixel(), stg.y_pixel());
-    for(std::size_t i=0; i<stg.x_pixel() * stg.y_pixel(); ++i)
-    {
-        ppm.raw_access(i) =
-            color_afmhot<Real, pnm::rgb_pixel>(stg[i], min_elem, max_elem);
-    }
-
-    // origin of the image is upper left, but the physical origin is lower left.
-    // to make it consistent, it simply reverses the image.
-    pnm::image<pnm::rgb_pixel> reversed(ppm.x_size(), ppm.y_size());
-    for(std::size_t i = 0; i<ppm.y_size(); ++i)
-    {
-        reversed[ppm.y_size() - i - 1] = ppm[i];
-    }
-
-    pnm::write(out + ".ppm"s, reversed, pnm::format::ascii);
-    return;
-}
-
-template<typename Real>
-void write_ppm(const stage<Real>& stg, const std::string& out)
-{
-    const auto minmax = std::minmax_element(stg.begin(), stg.end());
-    const auto min_elem = *minmax.first;
-    const auto max_elem = *minmax.second;
-
-    write_ppm(stg, out, std::make_pair(min_elem, max_elem));
-    return;
 }
 
 template<typename Real>
@@ -208,8 +137,8 @@ stage<Real> read_reference_image(const toml::value& sim, const stage<Real>& stg)
 
         obs->observe(stage, answer);
 
-        write_tsv("reference.tsv", stage);
-        write_ppm(stage, "reference.ppm");
+        write_tsv("reference", stage);
+        write_ppm("reference", stage);
         write_xyz("reference", answer);
     }
     return stage;
@@ -386,7 +315,7 @@ int main(int argc, char** argv)
     // score.k           = 10.0
 
 
-    afmize::system<Real> sys(reader->read_snapshot());
+    afmize::system<Real> sys(reader->read_snapshot(), std::move(stg));
     if(sys.bounding_box.lower[2] != 0)
     {
         const mave::vector<Real, 3> offset{0, 0, sys.bounding_box.lower[2]};
@@ -402,10 +331,12 @@ int main(int argc, char** argv)
     {
         // clear file content
         std::ofstream ofs(output_basename + ".xyz");
+    }
+    {
         // write the first state
-        afmize::write_xyz(output_basename, sim->current_state());
-        afmize::write_ppm(sim->current_image(), output_basename + "_0");
-        afmize::write_tsv(output_basename + "_0.tsv", sim->current_image());
+        afmize::write_xyz(output_basename,        sim->current_state());
+        afmize::write_ppm(output_basename + "_0", sim->current_image());
+        afmize::write_tsv(output_basename + "_0", sim->current_image());
     }
 
     const auto save_step = toml::find<std::size_t>(config, "simulator", "algorithm", "output");
@@ -414,15 +345,15 @@ int main(int argc, char** argv)
         if(sim->current_step() % save_step == 0)
         {
             const auto fname = output_basename + "_"+ std::to_string(sim->current_step());
-            afmize::write_ppm(sim->current_image(), fname);
-            afmize::write_tsv(fname + ".tsv", sim->current_image());
+            afmize::write_ppm(fname, sim->current_image());
+            afmize::write_tsv(fname, sim->current_image());
             afmize::write_xyz(output_basename, sim->current_state());
         }
     }
     {
         const auto fname = output_basename + "_"+ std::to_string(sim->current_step());
-        afmize::write_ppm(sim->current_image(), fname);
-        afmize::write_tsv(fname + ".tsv", sim->current_image());
+        afmize::write_ppm(fname, sim->current_image());
+        afmize::write_tsv(fname, sim->current_image());
         afmize::write_xyz(output_basename, sim->current_state());
     }
     return 0;
