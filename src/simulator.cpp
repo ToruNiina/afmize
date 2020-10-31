@@ -107,7 +107,7 @@ template<typename Real>
 image<Real> read_reference_image(const toml::value& sim, const stage<Real>& stg)
 {
     const auto refname = toml::find<std::string>(sim, "image", "reference");
-    image<Real> img = stg.create_image();
+    image<Real> img;
 
     if(refname.substr(refname.size() - 4, 4) == ".pdb" ||
        refname.substr(refname.size() - 4, 4) == ".xyz")
@@ -132,12 +132,13 @@ image<Real> read_reference_image(const toml::value& sim, const stage<Real>& stg)
 
         auto obs = read_observation_method<Real>(sim);
 
+        // XXX
         default_probe<Real> p;
         p.radius = 50.0; // 5 nm
         p.angle  = 20.0 * 3.1416 / 180.0;
         obs->update_probe(p);
 
-        obs->observe(img, answer);
+        img = obs->observe(answer);
 
         const Real sigma = read_as_angstrom<Real>(toml::find(sim, "image", "noise"));
         std::random_device dev{};

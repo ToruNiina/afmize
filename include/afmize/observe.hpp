@@ -71,9 +71,10 @@ template<typename Real>
 struct ObserverBase
 {
     virtual ~ObserverBase() = default;
-    virtual void observe(image<Real>&, const system<Real>&) = 0;
+    virtual image<Real> const& observe(const system<Real>&) = 0;
     virtual void update_probe(const default_probe<Real>&) = 0;
     virtual default_probe<Real> get_probe() const = 0;
+    virtual image<Real> const&  get_image() const = 0;
 };
 
 template<typename Real, bool Descritize>
@@ -85,8 +86,10 @@ struct RigidObserver: public ObserverBase<Real>
     ~RigidObserver() override = default;
 
     // here we assume the stage locates z == 0.
-    void observe(image<Real>& img, const system<Real>& sys) override
+    image<Real> const& observe(const system<Real>& sys) override
     {
+        img_.resize(sys.stage_info.x_pixel(), sys.stage_info.y_pixel());
+
         // to skip pixels, we first calculate aabb of the probe at the
         const Real max_frustum_radius = probe.radius +
             std::tan(probe.angle) * (sys.bounding_box.upper[2] - probe.radius);
@@ -110,7 +113,7 @@ struct RigidObserver: public ObserverBase<Real>
 
             if( ! collides_with(probe_aabb, sys.bounding_box))
             {
-                img(i, j) = 0.0;
+                img_(i, j) = 0.0;
                 continue;
             }
 
@@ -172,8 +175,7 @@ struct RigidObserver: public ObserverBase<Real>
                 {
                     if(elem.z_coordinate + sys.max_radius < min_height)
                     {
-                        // elements are sorted by its z coordinate.
-                        break;
+                        break; // elements are sorted by its z coordinate.
                     }
                     const auto& particle = sys.particles.at(elem.particle_idx);
 
@@ -189,15 +191,15 @@ struct RigidObserver: public ObserverBase<Real>
 
             if (Descritize)
             {
-                img(i, j) = afmize::discretize(min_height, sys.stage_info.z_resolution(), Real(0));
+                img_(i, j) = afmize::discretize(min_height, sys.stage_info.z_resolution(), Real(0));
             }
             else
             {
-                img(i, j) = min_height;
+                img_(i, j) = min_height;
             }
         }
         }
-        return;
+        return img_;
     }
 
     void update_probe(const default_probe<Real>& p) override
@@ -207,10 +209,12 @@ struct RigidObserver: public ObserverBase<Real>
     }
 
     default_probe<Real> get_probe() const override {return probe;}
+    image<Real> const&  get_image() const override {return img_;}
 
     default_probe<Real> probe;
 
   private:
+    image<Real> img_;
     std::vector<std::size_t> index_buffer_; // avoid allocation
 };
 

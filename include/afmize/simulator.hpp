@@ -106,8 +106,6 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
           max_dprobe_angle_(max_dprobe_angle),
           rng_(seed),
           nrm_(0.0, 1.0),
-          img_(sys.stage_info.create_image()),
-          tmp_img_(sys.stage_info.create_image()),
           reference_(std::move(ref)),
           sys_(sys),
           next_(sys),
@@ -123,8 +121,8 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
                               sys.stage_info.y_resolution(),
                               sys.particles);
         sys_.cells.construct(sys_.particles, sys_.bounding_box);
-        obs_->observe(img_, sys_);
-        current_energy_ = score_->calc(reference_, img_, Mask(sys_));
+        current_energy_ = score_->calc(sys_, obs_, reference_, Mask(sys_));
+        this->img_ = obs_->get_image();
 
         std::cout << "# step energy radius[nm] angle[degree]\n";
     }
@@ -291,12 +289,8 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         // update cell list
         next_.cells.construct(next_.particles, next_.bounding_box);
 
-        // generate pseudo AFM image
-        // bottom == 0 because the bottom object is aligned to 0.0.
-        obs_->observe(tmp_img_, next_);
-
         // calculate score depending on score function
-        const auto energy = score_->calc(reference_, tmp_img_, Mask(sys_));
+        const auto energy = score_->calc(next_, obs_, reference_, Mask(sys_));
         const auto deltaE = energy - current_energy_;
 
 //         std::cerr << "beta = " << beta << ", dE = " << deltaE
@@ -307,7 +301,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         {
             sys_ = next_;
             current_energy_ = energy;
-            img_ = tmp_img_;
+            img_ = obs_->get_image();
         }
         return;
     }
@@ -396,12 +390,8 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         // update cell list
         next_.cells.construct(next_.particles, next_.bounding_box);
 
-        // generate pseudo AFM image
-        // bottom == 0 because the bottom object is aligned to 0.0.
-        obs_->observe(tmp_img_, next_);
-
         // calculate score depending on score function
-        const auto energy = score_->calc(reference_, tmp_img_, Mask(sys_));
+        const auto energy = score_->calc(next_, obs_, reference_, Mask(sys_));
         const auto deltaE = energy - current_energy_;
 
 //         std::cerr << "beta = " << beta << ", dE = " << deltaE
@@ -415,7 +405,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         {
             sys_ = next_;
             current_energy_ = energy;
-            img_ = tmp_img_;
+            img_ = obs_->get_image();
         }
         return;
     }
@@ -441,12 +431,8 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         }
         obs_->update_probe(next_probe);
 
-        // generate pseudo AFM image
-        // bottom == 0 because the bottom object is aligned to 0.0.
-        obs_->observe(tmp_img_, sys_);
-
         // calculate score depending on score function
-        const auto energy = score_->calc(reference_, tmp_img_, Mask(sys_));
+        const auto energy = score_->calc(next_, obs_, reference_, Mask(sys_));
         const auto deltaE = energy - current_energy_;
 
 //         std::cerr << "beta = " << beta << ", dE = " << deltaE
@@ -457,7 +443,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         {
             // system is not updated
             current_energy_ = energy;
-            img_ = tmp_img_;
+            img_ = obs_->get_image();
         }
         else
         {
@@ -492,7 +478,6 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
     std::mt19937                             rng_;
     std::normal_distribution<Real>           nrm_;
     image<Real>                              img_;
-    image<Real>                          tmp_img_;
     image<Real>                        reference_;
     system<Real>                             sys_;
     system<Real>                            next_;
