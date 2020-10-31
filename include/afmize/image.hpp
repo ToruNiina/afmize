@@ -13,6 +13,7 @@ struct image
     using iterator       = typename container::iterator;
     using const_iterator = typename container::const_iterator;
 
+    image(): x_pixels_(0), y_pixels_(0) {}
     image(const std::size_t x, const std::size_t y)
         : x_pixels_(x), y_pixels_(y), heights(x_pixels_ * y_pixels_, 0)
     {}
@@ -63,6 +64,12 @@ struct image
     const_iterator  end()   const noexcept {return heights.end();}
     const_iterator cbegin() const noexcept {return heights.cbegin();}
     const_iterator cend()   const noexcept {return heights.cend();}
+
+    void resize(const std::size_t x, const std::size_t y)
+    {
+        heights.resize(x * y, 0.0);
+        return;
+    }
 
     std::size_t x_pixel() const noexcept {return x_pixels_;}
     std::size_t y_pixel() const noexcept {return y_pixels_;}
