@@ -5,7 +5,9 @@
 #include <afmize/xyz_reader.hpp>
 #include <afmize/input_utility.hpp>
 #include <afmize/output_utility.hpp>
+#include <afmize/noise.hpp>
 #include <afmize/colormap.hpp>
+#include <random>
 
 namespace afmize
 {
@@ -137,10 +139,16 @@ image<Real> read_reference_image(const toml::value& sim, const stage<Real>& stg)
 
         obs->observe(img, answer);
 
+        const Real sigma = read_as_angstrom<Real>(toml::find(sim, "image", "noise"));
+        std::random_device dev{};
+        std::mt19937 mt(dev());
+        apply_noise(img, mt, sigma);
+
         write_tsv("reference", img);
         write_ppm("reference", img);
         write_xyz("reference", answer);
     }
+
     return img;
 }
 
