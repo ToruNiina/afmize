@@ -17,6 +17,11 @@ struct image
     image(const std::size_t x, const std::size_t y)
         : x_pixels_(x), y_pixels_(y), heights(x_pixels_ * y_pixels_, 0)
     {}
+    image(const image&) = default;
+    image(image&&)      = default;
+    image& operator=(const image&) = default;
+    image& operator=(image&&)      = default;
+    ~image() = default;
 
     Real& operator[](std::size_t i)       noexcept {return heights[i];}
     Real  operator[](std::size_t i) const noexcept {return heights[i];}
@@ -67,6 +72,8 @@ struct image
 
     void resize(const std::size_t x, const std::size_t y)
     {
+        x_pixels_ = x;
+        y_pixels_ = y;
         heights.resize(x * y, 0.0);
         return;
     }
