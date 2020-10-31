@@ -131,5 +131,33 @@ bool collides_with(const aabb<Real>& lhs, const aabb<Real>& rhs)
          (lhs.lower[2] <= rhs.upper[2] && rhs.lower[2] <= lhs.upper[2]);
 }
 
+template<typename Real>
+bool collides_with(const std::vector<sphere<Real>>& lhs,
+                   const std::vector<sphere<Real>>& rhs)
+{
+    const auto aabb1 = make_bounding_box(lhs);
+    const auto aabb2 = make_bounding_box(rhs);
+    if( ! collides_with(lhs, rhs))
+    {
+        return false;
+    }
+
+    for(const auto& p1 : lhs)
+    {
+        if( ! collides_with(p1, aabb2))
+        {
+            continue;
+        }
+        for(const auto& p2 : rhs)
+        {
+            if(collides_with(p1, p2))
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 } // afmize
 #endif// AFMIZE_COLLISION_HPP
