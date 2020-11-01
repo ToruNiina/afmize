@@ -70,6 +70,22 @@ read_score_function(const toml::value& sim)
         const auto k = toml::find<Real>(sim, "score", "k");
         return std::make_unique<RootMeanSquareDeviation<Real, Mask>>(k);
     }
+    else if(method == "topographical penalty")
+    {
+        const auto penalty   = toml::find<Real>(sim, "score", "penalty");
+        const auto reward    = toml::find<Real>(sim, "score", "reward");
+        const auto thickness = read_as_angstrom<Real>(toml::find(sim, "score", "thickness"));
+        return std::make_unique<TopographicalPenalty<Real, Mask>>(
+                penalty, reward, thickness);
+    }
+    else if(method == "pixel penalty")
+    {
+        const auto penalty   = toml::find<Real>(sim, "score", "penalty");
+        const auto reward    = toml::find<Real>(sim, "score", "reward");
+        const auto thickness = read_as_angstrom<Real>(toml::find(sim, "score", "thickness"));
+        return std::make_unique<PixelPenalty<Real, Mask>>(
+                penalty, reward, thickness);
+    }
     else
     {
         throw std::runtime_error("unknown score function: " + method);
