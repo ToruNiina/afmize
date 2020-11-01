@@ -169,6 +169,38 @@ image<Real> read_reference_image(const toml::value& sim, const stage<Real>& stg)
     return img;
 }
 
+template<typename Real>
+system<Real> read_system(const toml::value& config)
+{
+    const auto& file   = toml::find(config, "file");
+    const auto  reader = afmize::open_file<Real>(toml::find<std::string>(file, "input"));
+
+    // read stage setting
+    //
+    // [stage.resolution]
+    // x = "1.0nm"
+    // y = "1.0nm"
+    // z = "0.64angstrom"
+    // [stage.range]
+    // x = ["0.0nm", "100.0nm"]
+    // y = ["0.0nm", "100.0nm"]
+    const auto& resolution = toml::find(config, "stage", "resolution");
+    const auto& range      = toml::find(config, "stage", "range");
+    const auto range_x = toml::find<std::array<toml::value, 2>>(range, "x");
+    const auto range_y = toml::find<std::array<toml::value, 2>>(range, "y");
+    stage<Real> stg(
+        read_as_angstrom<Real>(toml::find(resolution, "x")),
+        read_as_angstrom<Real>(toml::find(resolution, "y")),
+        read_as_angstrom<Real>(toml::find(resolution, "z")),
+        std::make_pair(read_as_angstrom<Real>(range_x[0]),
+                       read_as_angstrom<Real>(range_x[1])),
+        std::make_pair(read_as_angstrom<Real>(range_y[0]),
+                       read_as_angstrom<Real>(range_y[1]))
+        );
+
+    return system<Real>(reader->read_snapshot(), std::move(stg));
+}
+
 template<typename Real, typename Mask>
 std::unique_ptr<SimulatedAnnealingSimulator<Real, Mask>>
 read_simulated_annealing_simulator(const toml::value& sim, system<Real> init)
@@ -294,31 +326,7 @@ int main(int argc, char** argv)
     // input = "input.pdb"
     // output.basename = "output"
     const auto& file   = toml::find(config, "file");
-    const auto  reader = afmize::open_file<Real>(toml::find<std::string>(file, "input"));
     const auto  output_basename = toml::find<std::string>(file, "output", "basename");
-
-    // read stage setting
-    //
-    // [stage.resolution]
-    // x = "1.0nm"
-    // y = "1.0nm"
-    // z = "0.64angstrom"
-    // [stage.range]
-    // x = ["0.0nm", "100.0nm"]
-    // y = ["0.0nm", "100.0nm"]
-    const auto& resolution = toml::find(config, "stage", "resolution");
-    const auto& range      = toml::find(config, "stage", "range");
-    const auto range_x = toml::find<std::array<toml::value, 2>>(range, "x");
-    const auto range_y = toml::find<std::array<toml::value, 2>>(range, "y");
-    afmize::stage<Real> stg(
-        afmize::read_as_angstrom<Real>(toml::find(resolution, "x")),
-        afmize::read_as_angstrom<Real>(toml::find(resolution, "y")),
-        afmize::read_as_angstrom<Real>(toml::find(resolution, "z")),
-        std::make_pair(afmize::read_as_angstrom<Real>(range_x[0]),
-                       afmize::read_as_angstrom<Real>(range_x[1])),
-        std::make_pair(afmize::read_as_angstrom<Real>(range_y[0]),
-                       afmize::read_as_angstrom<Real>(range_y[1]))
-        );
 
     // simulator
     //
@@ -338,8 +346,7 @@ int main(int argc, char** argv)
     // score.method      = "correlation" | "RMSD"
     // score.k           = 10.0
 
-
-    afmize::system<Real> sys(reader->read_snapshot(), std::move(stg));
+    afmize::system<Real> sys = afmize::read_system<Real>(config);
     if(sys.bounding_box.lower[2] != 0)
     {
         const mave::vector<Real, 3> offset{0, 0, sys.bounding_box.lower[2]};
