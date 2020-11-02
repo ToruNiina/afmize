@@ -1,4 +1,4 @@
-#include <afmize/simulator.hpp>
+#include <afmize/annealing_simulator.hpp>
 #include <afmize/parameter.hpp>
 #include <afmize/progress_bar.hpp>
 #include <afmize/pdb_reader.hpp>
