@@ -2,6 +2,7 @@
 #define AFMIZE_ANNEALING_SIMULATOR_HPP
 #include "simulator_base.hpp"
 #include "progress_bar.hpp"
+#include "output_utility.hpp"
 #include "observe.hpp"
 #include "shapes.hpp"
 #include "system.hpp"
@@ -78,7 +79,8 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
             system<Real>        sys,
             std::unique_ptr<ObserverBase<Real>> obs,
             std::unique_ptr<ScoreBase<Real, Mask>> score,
-            std::unique_ptr<ScheduleBase<Real>> schedule)
+            std::unique_ptr<ScheduleBase<Real>> schedule,
+            const std::string& out)
         : step_(0),
           total_step_(total_step),
           save_step_(save),
@@ -98,7 +100,8 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
           obs_(std::move(obs)),
           score_(std::move(score)),
           schedule_(std::move(schedule)),
-          bar_(total_step)
+          bar_(total_step),
+          output_basename_(out)
     {
         sys_.cells.initialize(sys.stage_info.x_resolution(),
                               sys.stage_info.y_resolution(),
@@ -107,7 +110,12 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         current_energy_ = score_->calc(sys_, obs_, reference_, Mask(sys_));
         this->img_ = obs_->get_image();
 
-        std::cout << "# step energy radius[nm] angle[degree]\n";
+        // clear output content
+        {
+            std::ofstream trj(output_basename_ + ".xyz");
+        }
+        std::ofstream ene(output_basename_ + ".log");
+        ene << "# step energy radius[nm] angle[degree]\n";
     }
     ~SimulatedAnnealingSimulator() override = default;
 
@@ -117,7 +125,24 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         {
             this->step();
         }
+
+        // --------------------------------------------------------------------
+        // output final result
+
+        afmize::write_xyz(output_basename_, this->current_state());
+        afmize::write_ppm(output_basename_ + "_result", this->current_image());
+        afmize::write_tsv(output_basename_ + "_result", this->current_image());
+
+        std::ofstream ene(output_basename_ + ".log", std::ios::app);
+        const auto p = obs_->get_probe();
+        ene << this->step_
+            << " " << this->current_energy_
+            << " " << p.radius * 0.1
+            << " " << p.angle * 180.0 / 3.1416
+            << "\n";
+        std::cerr << bar_.format(this->step_);
     }
+
     bool run(const std::size_t steps) override
     {
         const auto until = std::min(this->step_ + steps, this->total_step_);
@@ -132,13 +157,20 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
     {
         if(this->step_ % save_step_ == 0)
         {
+            const auto fname = output_basename_ + "_" + std::to_string(this->current_step());
+            afmize::write_xyz(output_basename_, this->current_state());
+            afmize::write_ppm(fname,           this->current_image());
+            afmize::write_tsv(fname,           this->current_image());
+
+            std::ofstream ene(output_basename_ + ".log", std::ios::app);
             const auto p = obs_->get_probe();
+            ene << this->step_
+                << " " << this->current_energy_
+                << " " << p.radius * 0.1
+                << " " << p.angle * 180.0 / 3.1416
+                << "\n";
+
             std::cerr << bar_.format(this->step_);
-            std::cout << this->step_
-                      << " " << this->current_energy_
-                      << " " << p.radius * 0.1
-                      << " " << p.angle * 180.0 / 3.1416
-                      << "\n";
         }
 
         const auto temperature = schedule_->temperature(step_);
@@ -468,6 +500,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
     std::unique_ptr<ScoreBase<Real, Mask>> score_;
     std::unique_ptr<ScheduleBase<Real>> schedule_;
     afmize::progress_bar<70>                 bar_;
+    std::string                  output_basename_;
 };
 
 } // afmize

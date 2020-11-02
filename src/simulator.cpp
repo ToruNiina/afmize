@@ -203,10 +203,13 @@ system<Real> read_system(const toml::value& config)
 
 template<typename Real, typename Mask>
 std::unique_ptr<SimulatedAnnealingSimulator<Real, Mask>>
-read_simulated_annealing_simulator(const toml::value& sim, system<Real> init)
+read_simulated_annealing_simulator(const toml::value& config, system<Real> init)
 {
     constexpr Real pi         = Real(3.1415926535897932384626);
     constexpr Real deg_to_rad = pi / Real(180.0);
+    const auto& sim = toml::find(config, "simulator");
+
+    const auto out = toml::find<std::string>(config, "file", "output", "basename");
 
     const auto steps = toml::find<std::size_t>(sim, "algorithm", "steps");
     const auto save_step = toml::find<std::size_t>(sim, "algorithm", "output");
@@ -230,7 +233,8 @@ read_simulated_annealing_simulator(const toml::value& sim, system<Real> init)
         std::move(init),
         read_observation_method<Real>(sim),
         read_score_function<Real, Mask>(sim),
-        read_temperature_schedule<Real>(sim));
+        read_temperature_schedule<Real>(sim),
+        out);
 }
 
 template<typename Real>
@@ -246,12 +250,12 @@ read_simulator(const toml::value& config, system<Real> init)
         if(mask == "rectangular")
         {
             return read_simulated_annealing_simulator<Real, mask_by_rectangle<Real>>(
-                    sim, std::move(init));
+                    config, std::move(init));
         }
         else if(mask == "none")
         {
             return read_simulated_annealing_simulator<Real, mask_nothing<Real>>(
-                    sim, std::move(init));
+                    config, std::move(init));
         }
         else
         {
@@ -321,14 +325,9 @@ int main(int argc, char** argv)
         }
     }
 
-    // read input output files
     // [file]
     // input = "input.pdb"
     // output.basename = "output"
-    const auto& file   = toml::find(config, "file");
-    const auto  output_basename = toml::find<std::string>(file, "output", "basename");
-
-    // simulator
     //
     // [simulator]
     // seed              = 123456789
@@ -358,34 +357,7 @@ int main(int argc, char** argv)
         sys.bounding_box.upper -= offset;
     }
     auto sim = afmize::read_simulator(config, std::move(sys));
+    sim->run();
 
-    {
-        // clear file content
-        std::ofstream ofs(output_basename + ".xyz");
-    }
-    {
-        // write the first state
-        afmize::write_xyz(output_basename,        sim->current_state());
-        afmize::write_ppm(output_basename + "_0", sim->current_image());
-        afmize::write_tsv(output_basename + "_0", sim->current_image());
-    }
-
-    const auto save_step = toml::find<std::size_t>(config, "simulator", "algorithm", "output");
-    while(sim->step())
-    {
-        if(sim->current_step() % save_step == 0)
-        {
-            const auto fname = output_basename + "_"+ std::to_string(sim->current_step());
-            afmize::write_ppm(fname, sim->current_image());
-            afmize::write_tsv(fname, sim->current_image());
-            afmize::write_xyz(output_basename, sim->current_state());
-        }
-    }
-    {
-        const auto fname = output_basename + "_"+ std::to_string(sim->current_step());
-        afmize::write_ppm(fname, sim->current_image());
-        afmize::write_tsv(fname, sim->current_image());
-        afmize::write_xyz(output_basename, sim->current_state());
-    }
     return 0;
 }
