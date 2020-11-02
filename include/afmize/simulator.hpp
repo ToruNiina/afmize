@@ -114,9 +114,6 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
           schedule_(std::move(schedule)),
           bar_(total_step)
     {
-        // FIXME
-        // - split stage into image and resolution info
-        // - move resolution information to system
         sys_.cells.initialize(sys.stage_info.x_resolution(),
                               sys.stage_info.y_resolution(),
                               sys.particles);
