@@ -10,8 +10,9 @@ template<typename Real, typename Mask>
 struct ScoreBase
 {
     virtual ~ScoreBase() = default;
-    virtual Real calc(const system<Real>&, const std::unique_ptr<ObserverBase<Real>>&,
-                      const image<Real>&, const Mask&) const = 0;
+    virtual Real calc(const system<Real>& sys,
+              const std::unique_ptr<ObserverBase<Real>>& obs, const Mask& mask,
+              const image<Real>& target, const Mask& target_mask) const = 0;
 };
 
 template<typename Real, typename Mask>
@@ -22,24 +23,24 @@ struct NegativeCosineSimilarity: public ScoreBase<Real, Mask>
     explicit NegativeCosineSimilarity(const Real k_): k(k_) {}
     ~NegativeCosineSimilarity() override = default;
 
-    Real calc(const system<Real>& sys, const std::unique_ptr<ObserverBase<Real>>& obs,
-              const image<Real>& target, const Mask& mask) const override
+    Real calc(const system<Real>& sys,
+              const std::unique_ptr<ObserverBase<Real>>& obs, const Mask& mask,
+              const image<Real>& target, const Mask& target_mask) const override
     {
+        assert(mask.size() == target_mask.size());
+
         Real numer  = 0;
         Real denom1 = 0;
         Real denom2 = 0;
 
         const auto& img = obs->observe(sys);
 
-        for(std::size_t y=mask.lower_bounding_y(); y <= mask.upper_bounding_y(); ++y)
+        for(std::size_t y=0; y < mask.pixel_y(); ++y)
         {
-            for(std::size_t x=mask.lower_bounding_x(); x <= mask.upper_bounding_x(); ++x)
+            for(std::size_t x=0; x < mask.pixel_x(); ++x)
             {
-                // in a bounding rectangle, still there could be non-covered pixels.
-                if(mask(x, y)) {continue;}
-
-                const auto l = img.at(x, y);
-                const auto r = target.at(x, y);
+                const auto l =        mask(img,    x, y);
+                const auto r = target_mask(target, x, y);
 
                 numer  += l * r;
                 denom1 += l * l;
@@ -58,22 +59,22 @@ struct RootMeanSquareDeviation: public ScoreBase<Real, Mask>
     explicit RootMeanSquareDeviation(const Real k_): k(k_) {}
     ~RootMeanSquareDeviation() override = default;
 
-    Real calc(const system<Real>& sys, const std::unique_ptr<ObserverBase<Real>>& obs,
-              const image<Real>& target, const Mask& mask) const override
+    Real calc(const system<Real>& sys,
+              const std::unique_ptr<ObserverBase<Real>>& obs, const Mask& mask,
+              const image<Real>& target, const Mask& target_mask) const override
     {
+        assert(mask.size() == target_mask.size());
+
         std::uint64_t N = 0;
         Real sd = 0.0;
 
         const auto& img = obs->observe(sys);
-        for(std::size_t y=mask.lower_bounding_y(); y <= mask.upper_bounding_y(); ++y)
+        for(std::size_t y=0; y < mask.pixel_y(); ++y)
         {
-            for(std::size_t x=mask.lower_bounding_x(); x <= mask.upper_bounding_x(); ++x)
+            for(std::size_t x=0; x < mask.pixel_x(); ++x)
             {
-                // in a bounding rectangle, still there could be non-covered pixels.
-                if(mask(x, y)) {continue;}
-
-                const auto l = img(x, y);
-                const auto r = target(x, y);
+                const auto l =        mask(img,    x, y);
+                const auto r = target_mask(target, x, y);
 
                 sd += (l - r) * (l - r);
                 N  += 1;
@@ -91,21 +92,21 @@ struct SumOfDifference: public ScoreBase<Real, Mask>
     explicit SumOfDifference(const Real k_): k(k_) {}
     ~SumOfDifference() override = default;
 
-    Real calc(const system<Real>& sys, const std::unique_ptr<ObserverBase<Real>>& obs,
-              const image<Real>& target, const Mask& mask) const override
+    Real calc(const system<Real>& sys,
+              const std::unique_ptr<ObserverBase<Real>>& obs, const Mask& mask,
+              const image<Real>& target, const Mask& target_mask) const override
     {
+        assert(mask.size() == target_mask.size());
+
         Real s = 0.0;
 
         const auto& img = obs->observe(sys);
-        for(std::size_t y=mask.lower_bounding_y(); y <= mask.upper_bounding_y(); ++y)
+        for(std::size_t y=0; y < mask.pixel_y(); ++y)
         {
-            for(std::size_t x=mask.lower_bounding_x(); x <= mask.upper_bounding_x(); ++x)
+            for(std::size_t x=0; x < mask.pixel_x(); ++x)
             {
-                // in a bounding rectangle, still there could be non-covered pixels.
-                if(mask(x, y)) {continue;}
-
-                const auto l = img(x, y);
-                const auto r = target(x, y);
+                const auto l =        mask(img,    x, y);
+                const auto r = target_mask(target, x, y);
 
                 s += std::abs(l - r);
             }
@@ -126,25 +127,24 @@ struct TopographicalPenalty: public ScoreBase<Real, Mask>
     {}
     ~TopographicalPenalty() override = default;
 
-    Real calc(const system<Real>& sys, const std::unique_ptr<ObserverBase<Real>>& obs,
-              const image<Real>& target, const Mask& mask) const override
+    Real calc(const system<Real>& sys,
+              const std::unique_ptr<ObserverBase<Real>>& obs, const Mask& mask,
+              const image<Real>& target, const Mask& target_mask) const override
     {
+        assert(mask.size() == target_mask.size());
+
         obs->observe(sys); // we will use this image later in simulator
 
         Real score = 0.0;
-        for(std::size_t y=mask.lower_bounding_y(); y <= mask.upper_bounding_y(); ++y)
+        for(std::size_t y=0; y < mask.pixel_y(); ++y)
         {
-            for(std::size_t x=mask.lower_bounding_x(); x <= mask.upper_bounding_x(); ++x)
+            for(std::size_t x=0; x < mask.pixel_x(); ++x)
             {
-                // in a bounding rectangle, still there could be non-covered pixels.
-                if(mask(x, y)) {continue;}
+                const auto threshold_penalty = target_mask(target, x, y);
+                const auto threshold_reward  = target_mask(target, x, y) - thickness;
 
-                const auto threshold_penalty = target(x, y);
-                const auto threshold_reward  = target(x, y) - thickness;
-
-                for(const auto& c : sys.cells.cell_at(sys.stage_info.position_at(x, y)))
+                for(const auto& p : sys.particles) // speedup
                 {
-                    const auto p = sys.particles.at(c.particle_idx);
                     if(threshold_penalty < p.center[2] + p.radius)
                     {
                         // higher energy
@@ -174,28 +174,28 @@ struct PixelPenalty: public ScoreBase<Real, Mask>
     {}
     ~PixelPenalty() override = default;
 
-    Real calc(const system<Real>& sys, const std::unique_ptr<ObserverBase<Real>>& obs,
-              const image<Real>& target, const Mask& mask) const override
+    Real calc(const system<Real>& sys,
+              const std::unique_ptr<ObserverBase<Real>>& obs, const Mask& mask,
+              const image<Real>& target, const Mask& target_mask) const override
     {
+        assert(mask.size() == target_mask.size());
+
         const auto& img = obs->observe(sys);
 
         Real score = 0.0;
-        for(std::size_t y=mask.lower_bounding_y(); y <= mask.upper_bounding_y(); ++y)
+        for(std::size_t y=0; y < mask.pixel_y(); ++y)
         {
-            for(std::size_t x=mask.lower_bounding_x(); x <= mask.upper_bounding_x(); ++x)
+            for(std::size_t x=0; x < mask.pixel_x(); ++x)
             {
-                // in a bounding rectangle, still there could be non-covered pixels.
-                if(mask(x, y)) {continue;}
+                const auto threshold_penalty = target_mask(target, x, y);
+                const auto threshold_reward  = target_mask(target, x, y) - thickness;
 
-                const auto threshold_penalty = target(x, y);
-                const auto threshold_reward  = target(x, y) - thickness;
-
-                if(threshold_penalty < img(x, y))
+                if(threshold_penalty < mask(img, x, y))
                 {
                     // higher energy
                     score += penalty;
                 }
-                else if(threshold_reward < img(x, y))
+                else if(threshold_reward < mask(img, x, y))
                 {
                     // lower energy
                     score -= reward;

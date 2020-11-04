@@ -107,7 +107,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
                               sys.stage_info.y_resolution(),
                               sys.particles);
         sys_.cells.construct(sys_.particles, sys_.bounding_box);
-        current_energy_ = score_->calc(sys_, obs_, reference_, Mask(sys_));
+        current_energy_ = score_->calc(sys_, obs_, Mask(sys_), reference_, Mask(sys_));
         this->img_ = obs_->get_image();
 
         // clear output content
@@ -308,7 +308,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         next_.cells.construct(next_.particles, next_.bounding_box);
 
         // calculate score depending on score function
-        const auto energy = score_->calc(next_, obs_, reference_, Mask(sys_));
+        const auto energy = score_->calc(next_, obs_, Mask(sys_), reference_, Mask(sys_));
         const auto deltaE = energy - current_energy_;
 
 //         std::cerr << "beta = " << beta << ", dE = " << deltaE
@@ -409,7 +409,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         next_.cells.construct(next_.particles, next_.bounding_box);
 
         // calculate score depending on score function
-        const auto energy = score_->calc(next_, obs_, reference_, Mask(sys_));
+        const auto energy = score_->calc(next_, obs_, Mask(sys_), reference_, Mask(sys_));
         const auto deltaE = energy - current_energy_;
 
 //         std::cerr << "beta = " << beta << ", dE = " << deltaE
@@ -450,7 +450,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         obs_->update_probe(next_probe);
 
         // calculate score depending on score function
-        const auto energy = score_->calc(next_, obs_, reference_, Mask(sys_));
+        const auto energy = score_->calc(next_, obs_, Mask(sys_), reference_, Mask(sys_));
         const auto deltaE = energy - current_energy_;
 
 //         std::cerr << "beta = " << beta << ", dE = " << deltaE
