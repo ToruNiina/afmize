@@ -121,26 +121,8 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
 
     void run() override
     {
-        while(step_ < total_step_)
-        {
-            this->step();
-        }
-
-        // --------------------------------------------------------------------
-        // output final result
-
-        afmize::write_xyz(output_basename_, this->current_state());
-        afmize::write_ppm(output_basename_ + "_result", this->current_image());
-        afmize::write_tsv(output_basename_ + "_result", this->current_image());
-
-        std::ofstream ene(output_basename_ + ".log", std::ios::app);
-        const auto p = obs_->get_probe();
-        ene << this->step_
-            << " " << this->current_energy_
-            << " " << p.radius * 0.1
-            << " " << p.angle * 180.0 / 3.1416
-            << "\n";
-        std::cerr << bar_.format(this->step_);
+        while(this->step()) {}
+        return ;
     }
 
     bool run(const std::size_t steps) override
@@ -155,6 +137,27 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
 
     bool step() override
     {
+        if(this->step_ >= total_step_)
+        {
+            // --------------------------------------------------------------------
+            // output final result
+
+            afmize::write_xyz(output_basename_, this->current_state());
+            afmize::write_ppm(output_basename_ + "_result", this->current_image());
+            afmize::write_tsv(output_basename_ + "_result", this->current_image());
+
+            std::ofstream ene(output_basename_ + ".log", std::ios::app);
+            const auto p = obs_->get_probe();
+            ene << this->step_
+                << " " << this->current_energy_
+                << " " << p.radius * 0.1
+                << " " << p.angle * 180.0 / 3.1416
+                << "\n";
+            std::cerr << bar_.format(this->step_);
+
+            return false;
+        }
+
         if(this->step_ % save_step_ == 0)
         {
             const auto fname = output_basename_ + "_" + std::to_string(this->current_step());
@@ -232,7 +235,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         this->try_probe_change(drad, dang, beta);
 
         this->step_ += 1;
-        return step_ < total_step_;
+        return true;
     }
 
     system<Real> const& current_state() const noexcept override {return sys_;}
