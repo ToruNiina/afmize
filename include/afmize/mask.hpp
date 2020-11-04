@@ -86,57 +86,5 @@ struct mask_by_rectangle
     std::size_t y_upper_;
 };
 
-// template<typename Real>
-// struct mask_by_circle
-// {
-//     mask_by_circle(const stage<Real>& stage_info, const system<Real>& mol)
-//         : mask_by_rectangle(stage_info,
-//             make_bounding_sphere_centered_at_geometric_center(mol.particles))
-//     {}
-// 
-//     mask_by_circle(const stage<Real>& stage_info, const sphere<Real>& sph)
-//         : mask_by_rectangle(stage_info, sph.center[0], sph.center[1], sph.radius)
-//     {}
-// 
-//     bool operator()(const std::size_t x, const std::size_t y) const noexcept
-//     {
-//         if((x < bb_x_lower_ || bb_x_upper_ < x) ||
-//            (y < bb_y_lower_ || bb_y_upper_ < y))
-//         {
-//             return false;
-//         }
-// 
-//         // check pixel(rectangle)-circle overlap
-// 
-//         const Real pixel_min_x = x_lower_ + x_reso_ *  x;
-//         const Real pixel_max_x = x_lower_ + x_reso_ * (x+1);
-//         const Real pixel_min_y = y_lower_ + y_reso_ *  y;
-//         const Real pixel_max_y = y_lower_ + y_reso_ * (y+1);
-// 
-//         const Real nearest_x = std::max(pixel_min_x, std::min(x_center_, pixel_max_x));
-//         const Real nearest_y = std::max(pixel_min_y, std::min(y_center_, pixel_max_y));
-// 
-//         const Real dist_sq = (nearest_x - x_center_) * (nearest_x - x_center_) +
-//                              (nearest_y - y_center_) * (nearest_y - y_center_);
-// 
-//         return dist_sq <= radius_sq_;
-//     }
-// 
-//     std::size_t lower_bounding_x() const noexcept {return bb_x_lower_;}
-//     std::size_t lower_bounding_y() const noexcept {return bb_y_lower_;}
-//     std::size_t upper_bounding_x() const noexcept {return bb_x_upper_;}
-//     std::size_t upper_bounding_y() const noexcept {return bb_y_upper_;}
-// 
-//   private:
-// 
-//     std::size_t bb_x_lower_; // bounding box
-//     std::size_t bb_y_lower_;
-//     std::size_t bb_x_upper_;
-//     std::size_t bb_y_upper_;
-//     Real x_reso_,   y_reso_;
-//     Real x_lower_,  x_upper_, y_lower_, y_upper_;
-//     Real x_center_, y_center_, radius_, radius_sq_;
-// };
-
 } // afmize
 #endif// AFMIZE_MASK_HPP
