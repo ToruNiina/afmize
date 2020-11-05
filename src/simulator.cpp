@@ -157,11 +157,13 @@ image<Real> read_reference_image(const toml::value& sim, const stage<Real>& stg)
 
         img = obs->observe(answer);
 
-        const Real sigma = read_as_angstrom<Real>(toml::find(sim, "image", "noise"));
-        std::random_device dev{};
-        std::mt19937 mt(dev());
-        apply_noise(img, mt, sigma);
-
+        if(sim.at("image").contains("noise"))
+        {
+            const Real sigma = read_as_angstrom<Real>(toml::find(sim, "image", "noise"));
+            std::random_device dev{};
+            std::mt19937 mt(dev());
+            apply_noise(img, mt, sigma);
+        }
         write_tsv("reference", img);
         write_ppm("reference", img);
         write_xyz("reference", answer);
