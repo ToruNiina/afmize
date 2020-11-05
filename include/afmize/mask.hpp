@@ -17,6 +17,11 @@ struct mask_nothing
     explicit mask_nothing(const system<Real>& sys)
         : pixel_x_(sys.stage_info.x_pixel()), pixel_y_(sys.stage_info.y_pixel())
     {}
+    mask_nothing(const system<Real>& sys,
+                      const std::size_t, const std::size_t,
+                      const std::size_t, const std::size_t)
+        : pixel_x_(sys.stage_info.x_pixel()), pixel_y_(sys.stage_info.y_pixel())
+    {}
 
     Real operator()(const image<Real>& img,
                     const std::size_t x, const std::size_t y) const noexcept
@@ -75,11 +80,11 @@ struct mask_by_rectangle
     }
 
     // XXX pixel at upper is not included, but lower is included.
-    mask_by_rectangle(const std::size_t x_lower, const std::size_t x_upper,
-                      const std::size_t y_lower, const std::size_t y_upper)
-        : pixel_x_(x_upper - x_lower), pixel_y_(y_upper - y_lower),
-          x_lower_(x_lower), y_lower_(y_lower),
-          x_upper_(x_upper), y_upper_(y_upper)
+    mask_by_rectangle(const system<Real>&,
+                      const std::size_t x_lower, const std::size_t x_size,
+                      const std::size_t y_lower, const std::size_t y_size)
+        : pixel_x_(x_size), pixel_y_(y_size), x_lower_(x_lower), y_lower_(y_lower),
+          x_upper_(x_lower + x_size), y_upper_(y_lower + y_size)
     {}
 
     std::size_t size() const noexcept {return pixel_x_ * pixel_y_;}
