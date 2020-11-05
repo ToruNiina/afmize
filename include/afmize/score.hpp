@@ -11,7 +11,7 @@ struct ScoreBase
 {
     virtual ~ScoreBase() = default;
     virtual Real calc(const system<Real>& sys,
-              const std::unique_ptr<ObserverBase<Real>>& obs, const Mask& mask,
+              const image<Real>& img,    const Mask& mask,
               const image<Real>& target, const Mask& target_mask) const = 0;
 };
 
@@ -24,7 +24,7 @@ struct NegativeCosineSimilarity: public ScoreBase<Real, Mask>
     ~NegativeCosineSimilarity() override = default;
 
     Real calc(const system<Real>& sys,
-              const std::unique_ptr<ObserverBase<Real>>& obs, const Mask& mask,
+              const image<Real>& img,    const Mask& mask,
               const image<Real>& target, const Mask& target_mask) const override
     {
         assert(mask.size() == target_mask.size());
@@ -32,8 +32,6 @@ struct NegativeCosineSimilarity: public ScoreBase<Real, Mask>
         Real numer  = 0;
         Real denom1 = 0;
         Real denom2 = 0;
-
-        const auto& img = obs->observe(sys);
 
         for(std::size_t y=0; y < mask.pixel_y(); ++y)
         {
@@ -60,7 +58,7 @@ struct RootMeanSquareDeviation: public ScoreBase<Real, Mask>
     ~RootMeanSquareDeviation() override = default;
 
     Real calc(const system<Real>& sys,
-              const std::unique_ptr<ObserverBase<Real>>& obs, const Mask& mask,
+              const image<Real>& img,    const Mask& mask,
               const image<Real>& target, const Mask& target_mask) const override
     {
         assert(mask.size() == target_mask.size());
@@ -68,7 +66,6 @@ struct RootMeanSquareDeviation: public ScoreBase<Real, Mask>
         std::uint64_t N = 0;
         Real sd = 0.0;
 
-        const auto& img = obs->observe(sys);
         for(std::size_t y=0; y < mask.pixel_y(); ++y)
         {
             for(std::size_t x=0; x < mask.pixel_x(); ++x)
@@ -93,14 +90,13 @@ struct SumOfDifference: public ScoreBase<Real, Mask>
     ~SumOfDifference() override = default;
 
     Real calc(const system<Real>& sys,
-              const std::unique_ptr<ObserverBase<Real>>& obs, const Mask& mask,
+              const image<Real>& img,    const Mask& mask,
               const image<Real>& target, const Mask& target_mask) const override
     {
         assert(mask.size() == target_mask.size());
 
         Real s = 0.0;
 
-        const auto& img = obs->observe(sys);
         for(std::size_t y=0; y < mask.pixel_y(); ++y)
         {
             for(std::size_t x=0; x < mask.pixel_x(); ++x)
@@ -128,12 +124,10 @@ struct TopographicalPenalty: public ScoreBase<Real, Mask>
     ~TopographicalPenalty() override = default;
 
     Real calc(const system<Real>& sys,
-              const std::unique_ptr<ObserverBase<Real>>& obs, const Mask& mask,
+              const image<Real>& img,    const Mask& mask,
               const image<Real>& target, const Mask& target_mask) const override
     {
         assert(mask.size() == target_mask.size());
-
-        obs->observe(sys); // we will use this image later in simulator
 
         Real score = 0.0;
         for(std::size_t y=0; y < mask.pixel_y(); ++y)
@@ -175,12 +169,10 @@ struct PixelPenalty: public ScoreBase<Real, Mask>
     ~PixelPenalty() override = default;
 
     Real calc(const system<Real>& sys,
-              const std::unique_ptr<ObserverBase<Real>>& obs, const Mask& mask,
+              const image<Real>& img,    const Mask& mask,
               const image<Real>& target, const Mask& target_mask) const override
     {
         assert(mask.size() == target_mask.size());
-
-        const auto& img = obs->observe(sys);
 
         Real score = 0.0;
         for(std::size_t y=0; y < mask.pixel_y(); ++y)

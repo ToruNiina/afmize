@@ -119,6 +119,7 @@ struct RigidObserver: public ObserverBase<Real>
 
 //             const auto min_height = collide_at(sys, probe, 0.0);
 
+
             // screen particles and get initial guess of the (minimum) height
             Real min_height = 0.0;
             for(const auto& elem : sys.cells.cell_at(probe.apex))
