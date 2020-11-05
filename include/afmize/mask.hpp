@@ -83,7 +83,8 @@ struct mask_by_rectangle
     mask_by_rectangle(const system<Real>&,
                       const std::size_t x_lower, const std::size_t x_size,
                       const std::size_t y_lower, const std::size_t y_size)
-        : pixel_x_(x_size), pixel_y_(y_size), x_lower_(x_lower), y_lower_(y_lower),
+        : pixel_x_(x_size),           pixel_y_(y_size),
+          x_lower_(x_lower),          y_lower_(y_lower),
           x_upper_(x_lower + x_size), y_upper_(y_lower + y_size)
     {}
 
@@ -92,21 +93,20 @@ struct mask_by_rectangle
     Real operator()(const image<Real>& img,
                     const std::size_t x, const std::size_t y) const
     {
-        if(x < x_lower_ || x_upper_ <= x)
+        if(x_upper_ <= x + x_lower_)
         {
-            throw std::out_of_range("afmize::mask: condition x_lower (" +
-                    std::to_string(x_lower_) + ") <= x (" +
-                    std::to_string(x)        + ") < x_upper (" +
-                    std::to_string(x_lower_) + ") is not satisfied.");
+            throw std::out_of_range("afmize::mask: condition x + x_lower (" +
+                    std::to_string(x) + " + " + std::to_string(x_lower_) + ") <= x_upper (" +
+                    std::to_string(x_upper_) + ") is not satisfied.");
         }
-        if(y < y_lower_ || y_upper_ <= y)
+        if(y_upper_ <= y + y_lower_)
         {
-            throw std::out_of_range("afmize::mask: condition y_lower (" +
-                    std::to_string(y_lower_) + ") <= y (" +
-                    std::to_string(y)        + ") < y_upper (" +
-                    std::to_string(y_lower_) + ") is not satisfied.");
+            throw std::out_of_range("afmize::mask: condition y + y_lower (" +
+                    std::to_string(y) + " + " + std::to_string(y_lower_) + ") <= y_upper (" +
+                    std::to_string(y_upper_) + ") is not satisfied.");
+
         }
-        return img(x - x_lower_, y - y_lower_);
+        return img(x + x_lower_, y + y_lower_);
     }
 
     std::size_t pixel_x() const noexcept {return pixel_x_;}
