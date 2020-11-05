@@ -1,4 +1,5 @@
 #include <afmize/annealing_simulator.hpp>
+#include <afmize/scanning_simulator.hpp>
 #include <afmize/parameter.hpp>
 #include <afmize/progress_bar.hpp>
 #include <afmize/pdb_reader.hpp>
@@ -237,6 +238,28 @@ read_simulated_annealing_simulator(const toml::value& config, system<Real> init)
         out);
 }
 
+template<typename Real, typename Mask>
+std::unique_ptr<ScanningSimulator<Real, Mask>>
+read_scanning_simulator(const toml::value& config, system<Real> init)
+{
+    const auto out = toml::find<std::string>(config, "file", "output", "basename");
+
+    const auto& sim = toml::find(config, "simulator");
+    const auto num_div  = toml::find<std::size_t>(sim, "algorithm", "num_division");
+    const auto num_save = toml::find<std::size_t>(sim, "algorithm", "num_save");
+
+    auto ref = read_reference_image(sim, init.stage_info);
+
+    return std::make_unique<ScanningSimulator<Real, Mask>>(
+        num_div, num_save,
+        std::move(ref),
+        std::move(init),
+        read_observation_method<Real>(sim),
+        read_score_function<Real, Mask>(sim),
+        out);
+}
+
+
 template<typename Real>
 std::unique_ptr<SimulatorBase<Real>>
 read_simulator(const toml::value& config, system<Real> init)
@@ -246,7 +269,6 @@ read_simulator(const toml::value& config, system<Real> init)
     if(algo == "SA" || algo == "SimulatedAnnealing")
     {
         const auto mask  = toml::find<std::string>(sim, "image", "mask");
-        const auto score = toml::find<std::string>(sim, "score", "method");
         if(mask == "rectangular")
         {
             return read_simulated_annealing_simulator<Real, mask_by_rectangle<Real>>(
@@ -261,6 +283,11 @@ read_simulator(const toml::value& config, system<Real> init)
         {
             throw std::runtime_error("unknown mask: " + mask);
         }
+    }
+    else if(algo == "Scanning")
+    {
+        return read_scanning_simulator<Real, mask_by_rectangle<Real>>(
+                config, std::move(init));
     }
     else
     {
