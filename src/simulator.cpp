@@ -36,16 +36,18 @@ open_file(const std::string& fname)
 }
 
 template<typename Real>
-std::unique_ptr<ObserverBase<Real>> read_observation_method(const toml::value& sim)
+std::unique_ptr<ObserverBase<Real>> read_observation_method(const toml::value& config)
 {
     constexpr Real pi         = Real(3.1415926535897932384626);
     constexpr Real deg_to_rad = pi / Real(180.0);
 
+    const auto& p = toml::find(config, "probe");
     default_probe<Real> probe;
-    probe.angle  = toml::find<Real>(sim, "probe", "angle") * deg_to_rad;
-    probe.radius = read_as_angstrom<Real>(toml::find(sim, "probe", "radius"));
+    probe.angle  = toml::find<Real>(p, "angle") * deg_to_rad;
+    probe.radius = read_as_angstrom<Real>(toml::find(p, "radius"));
 
-    const auto z_descritized = toml::find<bool>(sim, "image", "descritized");
+    // If z resolution is set, that means height is descritized in an image.
+    const auto z_descritized = config.at("stage").at("resolution").contains("z");
     if(z_descritized)
     {
         return std::make_unique<RigidObserver<Real, true>>(std::move(probe));
@@ -58,32 +60,37 @@ std::unique_ptr<ObserverBase<Real>> read_observation_method(const toml::value& s
 
 template<typename Real, typename Mask>
 std::unique_ptr<ScoreBase<Real, Mask>>
-read_score_function(const toml::value& sim)
+read_score_function(const toml::value& config)
 {
-    const auto method = toml::find<std::string>(sim, "score", "method");
+    const auto& score = config.at("score");
+
+    auto method = toml::find<std::string>(score, "method");
+    std::transform(method.begin(), method.end(), method.begin(),
+            [](const char c) -> char {return std::tolower(c);});
+
     if(method == "correlation")
     {
-        const auto k = toml::find<Real>(sim, "score", "k");
+        const auto k = toml::find<Real>(score, "k");
         return std::make_unique<NegativeCosineSimilarity<Real, Mask>>(k);
     }
-    else if(method == "RMSD")
+    else if(method == "rmsd")
     {
-        const auto k = toml::find<Real>(sim, "score", "k");
+        const auto k = toml::find<Real>(score, "k");
         return std::make_unique<RootMeanSquareDeviation<Real, Mask>>(k);
     }
     else if(method == "topographical penalty")
     {
-        const auto penalty   = toml::find<Real>(sim, "score", "penalty");
-        const auto reward    = toml::find<Real>(sim, "score", "reward");
-        const auto thickness = read_as_angstrom<Real>(toml::find(sim, "score", "thickness"));
+        const auto penalty   = toml::find<Real>(score, "penalty");
+        const auto reward    = toml::find<Real>(score, "reward");
+        const auto thickness = read_as_angstrom<Real>(toml::find(score, "thickness"));
         return std::make_unique<TopographicalPenalty<Real, Mask>>(
                 penalty, reward, thickness);
     }
     else if(method == "pixel penalty")
     {
-        const auto penalty   = toml::find<Real>(sim, "score", "penalty");
-        const auto reward    = toml::find<Real>(sim, "score", "reward");
-        const auto thickness = read_as_angstrom<Real>(toml::find(sim, "score", "thickness"));
+        const auto penalty   = toml::find<Real>(score, "penalty");
+        const auto reward    = toml::find<Real>(score, "reward");
+        const auto thickness = read_as_angstrom<Real>(toml::find(score, "thickness"));
         return std::make_unique<PixelPenalty<Real, Mask>>(
                 penalty, reward, thickness);
     }
@@ -95,12 +102,13 @@ read_score_function(const toml::value& sim)
 
 template<typename Real>
 std::unique_ptr<ScheduleBase<Real>>
-read_temperature_schedule(const toml::value& sim)
+read_temperature_schedule(const toml::value& config)
 {
+    const auto& sim = toml::find(config, "simulator");
     const auto method = toml::find<std::string>(sim, "schedule", "method");
     if(method == "linear")
     {
-        const auto total_t = toml::find<std::size_t>(sim, "algorithm", "steps");
+        const auto total_t = toml::find<std::size_t>(sim, "steps");
         const auto initial = toml::find<Real>(sim, "schedule", "initial");
         const auto final   = toml::find<Real>(sim, "schedule", "final");
 
@@ -108,7 +116,7 @@ read_temperature_schedule(const toml::value& sim)
     }
     else if(method == "exponential")
     {
-        const auto total_t = toml::find<std::size_t>(sim, "algorithm", "steps");
+        const auto total_t = toml::find<std::size_t>(sim, "steps");
         const auto initial = toml::find<Real>(sim, "schedule", "initial");
         const auto final   = toml::find<Real>(sim, "schedule", "final");
 
@@ -121,85 +129,58 @@ read_temperature_schedule(const toml::value& sim)
 }
 
 template<typename Real>
-image<Real> read_reference_image(const toml::value& sim, const stage<Real>& stg)
+image<Real> read_reference_image(const toml::value& config, const stage<Real>& stg)
 {
-    const auto refname = toml::find<std::string>(sim, "image", "reference");
-    image<Real> img;
-
-    if(refname.substr(refname.size() - 4, 4) == ".pdb" ||
-       refname.substr(refname.size() - 4, 4) == ".xyz")
+    const auto refname = toml::find<std::string>(config, "image", "reference");
+    if(refname.substr(refname.size() - 4, 4) == ".tsv")
     {
-        // generate reference image
-        system<Real> answer(open_file<Real>(refname)->read_snapshot(), stg);
+        const auto x = toml::find<std::size_t>(config, "image", "pixels", "x");
+        const auto y = toml::find<std::size_t>(config, "image", "pixels", "y");
+        image<Real> img(x, y);
 
-        if(answer.bounding_box.lower[2] != 0)
+        std::ifstream ifs(refname);
+        for(std::size_t y=0; y<img.y_pixel(); ++y)
         {
-            const mave::vector<Real, 3> offset{0, 0, answer.bounding_box.lower[2]};
-            for(auto& p : answer.particles)
+            for(std::size_t x=0; x<img.x_pixel(); ++x)
             {
-                p.center -= offset;
+                ifs >> img.at(x, y);
             }
-            answer.bounding_box.lower -= offset;
-            answer.bounding_box.upper -= offset;
         }
-
-        answer.cells.initialize(stg.x_resolution(), stg.y_resolution(),
-                                answer.particles);
-        answer.cells.construct(answer.particles, answer.bounding_box);
-
-        auto obs = read_observation_method<Real>(sim);
-
-        // XXX
-        default_probe<Real> p;
-        p.radius = 50.0; // 5 nm
-        p.angle  = 20.0 * 3.1416 / 180.0;
-        obs->update_probe(p);
-
-        img = obs->observe(answer);
-
-        if(sim.at("image").contains("noise"))
-        {
-            const Real sigma = read_as_angstrom<Real>(toml::find(sim, "image", "noise"));
-            std::random_device dev{};
-            std::mt19937 mt(dev());
-            apply_noise(img, mt, sigma);
-        }
-        write_tsv("reference", img);
-        write_ppm("reference", img);
-        write_xyz("reference", answer);
+        return img;
     }
-
-    return img;
+    else
+    {
+        throw std::runtime_error("[error] image format not supported: " + refname);
+    }
 }
 
 template<typename Real>
 system<Real> read_system(const toml::value& config)
 {
-    const auto& file   = toml::find(config, "file");
-    const auto  reader = afmize::open_file<Real>(toml::find<std::string>(file, "input"));
+    const auto reader = open_file<Real>(toml::find<std::string>(config, "initial", "input"));
+
+    // image lower coordinate
+    const auto lower_x = read_as_angstrom<Real>(toml::find(config, "image", "lower", "x"));
+    const auto lower_y = read_as_angstrom<Real>(toml::find(config, "image", "lower", "y"));
 
     // read stage setting
-    //
-    // [stage.resolution]
-    // x = "1.0nm"
-    // y = "1.0nm"
-    // z = "0.64angstrom"
-    // [stage.range]
-    // x = ["0.0nm", "100.0nm"]
-    // y = ["0.0nm", "100.0nm"]
+    // [stage]
+    // pixels.x     = 80
+    // pixels.y     = 80
+    // resolution.x = "1.0nm"
+    // resolution.y = "1.0nm"
+    const auto pixel_x = toml::find<std::size_t>(config, "stage", "pixels", "x");
+    const auto pixel_y = toml::find<std::size_t>(config, "stage", "pixels", "y");
+
     const auto& resolution = toml::find(config, "stage", "resolution");
-    const auto& range      = toml::find(config, "stage", "range");
-    const auto range_x = toml::find<std::array<toml::value, 2>>(range, "x");
-    const auto range_y = toml::find<std::array<toml::value, 2>>(range, "y");
-    stage<Real> stg(
-        read_as_angstrom<Real>(toml::find(resolution, "x")),
-        read_as_angstrom<Real>(toml::find(resolution, "y")),
-        read_as_angstrom<Real>(toml::find(resolution, "z")),
-        std::make_pair(read_as_angstrom<Real>(range_x[0]),
-                       read_as_angstrom<Real>(range_x[1])),
-        std::make_pair(read_as_angstrom<Real>(range_y[0]),
-                       read_as_angstrom<Real>(range_y[1]))
-        );
+    const auto reso_x = read_as_angstrom<Real>(toml::find(resolution, "x"));
+    const auto reso_y = read_as_angstrom<Real>(toml::find(resolution, "y"));
+    const auto reso_z = read_as_angstrom<Real>(
+            toml::find_or(resolution, "z", toml::value(0.0)));
+
+    stage<Real> stg(reso_x, reso_y, reso_z,
+        std::make_pair(lower_x, lower_x + reso_x * pixel_x),
+        std::make_pair(lower_y, lower_y + reso_y * pixel_y));
 
     return system<Real>(reader->read_snapshot(), std::move(stg));
 }
@@ -211,32 +192,31 @@ read_simulated_annealing_simulator(const toml::value& config, system<Real> init)
     constexpr Real pi         = Real(3.1415926535897932384626);
     constexpr Real deg_to_rad = pi / Real(180.0);
     const auto& sim = toml::find(config, "simulator");
+    const auto  out = toml::find<std::string>(sim, "output");
 
-    const auto out = toml::find<std::string>(config, "file", "output", "basename");
+    const auto seed  = toml::find<std::uint32_t>(sim, "seed");
+    const auto steps = toml::find<std::size_t  >(sim, "steps");
+    const auto save  = toml::find<std::size_t  >(sim, "save");
 
-    const auto steps = toml::find<std::size_t>(sim, "algorithm", "steps");
-    const auto save_step = toml::find<std::size_t>(sim, "algorithm", "output");
-    const auto seed = toml::find<std::uint32_t>(sim, "seed");
+    const auto sx = afmize::read_as_angstrom<Real>(toml::find(sim, "sigma_x"));
+    const auto sy = afmize::read_as_angstrom<Real>(toml::find(sim, "sigma_y"));
+    const auto sz = afmize::read_as_angstrom<Real>(toml::find(sim, "sigma_z"));
+    const auto rx = toml::find<Real>(sim, "maxrot_x") * deg_to_rad;
+    const auto ry = toml::find<Real>(sim, "maxrot_y") * deg_to_rad;
+    const auto rz = toml::find<Real>(sim, "maxrot_z") * deg_to_rad;
 
-    const auto sx = afmize::read_as_angstrom<Real>(toml::find(sim, "algorithm", "sigma_x"));
-    const auto sy = afmize::read_as_angstrom<Real>(toml::find(sim, "algorithm", "sigma_y"));
-    const auto sz = afmize::read_as_angstrom<Real>(toml::find(sim, "algorithm", "sigma_z"));
-    const auto rx = toml::find<Real>(sim, "algorithm", "maxrot_x") * deg_to_rad;
-    const auto ry = toml::find<Real>(sim, "algorithm", "maxrot_y") * deg_to_rad;
-    const auto rz = toml::find<Real>(sim, "algorithm", "maxrot_z") * deg_to_rad;
+    const auto pr = afmize::read_as_angstrom<Real>(toml::find(sim, "max_dradius"));
+    const auto pa = toml::find<Real>(sim, "max_dangle") * deg_to_rad;
 
-    const auto pr = afmize::read_as_angstrom<Real>(toml::find(sim, "algorithm", "max_dradius"));
-    const auto pa = toml::find<Real>(sim, "algorithm", "max_dangle") * deg_to_rad;
-
-    auto ref = read_reference_image(sim, init.stage_info);
+    auto ref = read_reference_image(config, init.stage_info);
 
     return std::make_unique<SimulatedAnnealingSimulator<Real, Mask>>(
-        steps, save_step, seed, sx, sy, sz, rx, ry, rz, pr, pa,
+        steps, save, seed, sx, sy, sz, rx, ry, rz, pr, pa,
         std::move(ref),
         std::move(init),
-        read_observation_method<Real>(sim),
-        read_score_function<Real, Mask>(sim),
-        read_temperature_schedule<Real>(sim),
+        read_observation_method<Real>(config),
+        read_score_function<Real, Mask>(config),
+        read_temperature_schedule<Real>(config),
         out);
 }
 
@@ -244,33 +224,32 @@ template<typename Real, typename Mask>
 std::unique_ptr<ScanningSimulator<Real, Mask>>
 read_scanning_simulator(const toml::value& config, system<Real> init)
 {
-    const auto out = toml::find<std::string>(config, "file", "output", "basename");
+    const auto out = toml::find<std::string>(config, "simulator", "output");
 
     const auto& sim = toml::find(config, "simulator");
-    const auto num_div  = toml::find<std::size_t>(sim, "algorithm", "num_division");
-    const auto num_save = toml::find<std::size_t>(sim, "algorithm", "num_save");
+    const auto num_div  = toml::find<std::size_t>(sim, "num_division");
+    const auto num_save = toml::find<std::size_t>(sim, "save");
 
-    auto ref = read_reference_image(sim, init.stage_info);
+    auto ref = read_reference_image(config, init.stage_info);
 
     return std::make_unique<ScanningSimulator<Real, Mask>>(
         num_div, num_save,
         std::move(ref),
         std::move(init),
-        read_observation_method<Real>(sim),
-        read_score_function<Real, Mask>(sim),
+        read_observation_method<Real>(config),
+        read_score_function<Real, Mask>(config),
         out);
 }
-
 
 template<typename Real>
 std::unique_ptr<SimulatorBase<Real>>
 read_simulator(const toml::value& config, system<Real> init)
 {
     const auto& sim = toml::find(config, "simulator");
-    const auto algo = toml::find<std::string>(sim, "algorithm", "method");
+    const auto algo = toml::find<std::string>(sim, "method");
     if(algo == "SA" || algo == "SimulatedAnnealing")
     {
-        const auto mask  = toml::find<std::string>(sim, "image", "mask");
+        const auto mask  = toml::find<std::string>(config, "score", "mask");
         if(mask == "rectangular")
         {
             return read_simulated_annealing_simulator<Real, mask_by_rectangle<Real>>(
@@ -321,7 +300,7 @@ int main(int argc, char** argv)
     // -----------------------------------------------------------------------
     // update global parameter, radii
 
-    if(config.as_table().count("radii") == 1)
+    if(config.contains("radii"))
     {
         const auto& radii = toml::find(config, "radii");
         for(const auto& kv : toml::find_or<toml::table>(radii, "atom", toml::table{}))
@@ -354,27 +333,8 @@ int main(int argc, char** argv)
         }
     }
 
-    // [file]
-    // input = "input.pdb"
-    // output.basename = "output"
-    //
-    // [simulator]
-    // seed              = 123456789
-    // algorithm.method  = "SA"
-    // algorithm.steps   = 1_000_000
-    // algorithm.output  = 100
-    // schedule.method   = "linear" | "exponential" # (required if "SA")
-    // schedule.initial  = 10.0
-    // schedule.final    =  0.0
-    // probe.radius      = "1.0nm"
-    // probe.angle       = 10.0 # degree
-    // image.reference   = "pdb file" | "asd file"
-    // image.descritized = false
-    // image.mask        = "rectangular" | "none"
-    // score.method      = "correlation" | "RMSD"
-    // score.k           = 10.0
-
     afmize::system<Real> sys = afmize::read_system<Real>(config);
+    // align the bottom to z == 0
     if(sys.bounding_box.lower[2] != 0)
     {
         const mave::vector<Real, 3> offset{0, 0, sys.bounding_box.lower[2]};
@@ -385,6 +345,7 @@ int main(int argc, char** argv)
         sys.bounding_box.lower -= offset;
         sys.bounding_box.upper -= offset;
     }
+
     auto sim = afmize::read_simulator(config, std::move(sys));
     sim->run();
 
