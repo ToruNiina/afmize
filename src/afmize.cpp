@@ -38,7 +38,7 @@ open_file(const std::string& fname)
 
 struct output_format_flags
 {
-    output_format_flags() : csv(false), json(false), ppm(false), svg(false) {}
+    output_format_flags() : csv(false), tsv(false), json(false), ppm(false), svg(false) {}
 
     static output_format_flags
     from_inputs(std::vector<std::string> inputs)
@@ -49,6 +49,10 @@ struct output_format_flags
             if(format == "csv")
             {
                 set_flag(self.csv, format);
+            }
+            if(format == "tsv")
+            {
+                set_flag(self.tsv, format);
             }
             else if(format == "json")
             {
@@ -86,6 +90,7 @@ struct output_format_flags
     }
 
     bool csv;
+    bool tsv;
     bool json;
     bool ppm;
     bool svg;
@@ -336,6 +341,10 @@ int main(int argc, char** argv)
             if(output_formats.csv)
             {
                 afmize::write_csv (outname, img);
+            }
+            if(output_formats.tsv)
+            {
+                afmize::write_tsv (outname, img);
             }
 
             if(output_formats.json)
