@@ -8,6 +8,7 @@
 #include <afmize/output_utility.hpp>
 #include <afmize/progress_bar.hpp>
 #include <afmize/observe.hpp>
+#include <afmize/noise.hpp>
 #include <limits>
 #include <string>
 
@@ -213,6 +214,11 @@ int main(int argc, char** argv)
         return EXIT_FAILURE;
     }
 
+    const auto noise_sigma = afmize::read_as_angstrom<Real>(
+            toml::find_or(config, "noise", toml::value{0.0}));
+    std::random_device dev;
+    std::mt19937 rng(dev());
+
     // color range information ...
     const auto& cmap = toml::find_or(config, "colormap", toml::value{});
     const auto cmap_min = afmize::read_as_angstrom<Real>(
@@ -324,6 +330,12 @@ int main(int argc, char** argv)
                     }
                 }
             }
+
+            if(noise_sigma != 0.0)
+            {
+                afmize::apply_noise(img, rng, noise_sigma, stage_position);
+            }
+
             if(reader->size() == 1)
             {
                 std::cerr << bar.format(stg.y_pixel() * stg.x_pixel());
