@@ -37,6 +37,10 @@ struct NegativeCosineSimilarity: public ScoreBase<Real, Mask>
         {
             for(std::size_t x=0; x < mask.pixel_x(); ++x)
             {
+                if(mask.is_skipped(img, x, y) || target_mask.is_skipped(target, x, y))
+                {
+                    continue;
+                }
                 const auto l =        mask(img,    x, y);
                 const auto r = target_mask(target, x, y);
 
@@ -70,6 +74,10 @@ struct RootMeanSquareDeviation: public ScoreBase<Real, Mask>
         {
             for(std::size_t x=0; x < mask.pixel_x(); ++x)
             {
+                if(mask.is_skipped(img, x, y) || target_mask.is_skipped(target, x, y))
+                {
+                    continue;
+                }
                 const auto l =        mask(img,    x, y);
                 const auto r = target_mask(target, x, y);
 
@@ -101,6 +109,11 @@ struct SumOfDifference: public ScoreBase<Real, Mask>
         {
             for(std::size_t x=0; x < mask.pixel_x(); ++x)
             {
+                if(mask.is_skipped(img, x, y) || target_mask.is_skipped(target, x, y))
+                {
+                    continue;
+                }
+
                 const auto l =        mask(img,    x, y);
                 const auto r = target_mask(target, x, y);
 
@@ -134,6 +147,11 @@ struct TopographicalPenalty: public ScoreBase<Real, Mask>
         {
             for(std::size_t x=0; x < mask.pixel_x(); ++x)
             {
+                if(mask.is_skipped(img, x, y) || target_mask.is_skipped(target, x, y))
+                {
+                    continue;
+                }
+
                 const auto threshold_penalty = target_mask(target, x, y);
                 const auto threshold_reward  = target_mask(target, x, y) - thickness;
 
@@ -179,6 +197,11 @@ struct PixelPenalty: public ScoreBase<Real, Mask>
         {
             for(std::size_t x=0; x < mask.pixel_x(); ++x)
             {
+                if(mask.is_skipped(img, x, y) || target_mask.is_skipped(target, x, y))
+                {
+                    continue;
+                }
+
                 const auto threshold_penalty = target_mask(target, x, y);
                 const auto threshold_reward  = target_mask(target, x, y) - thickness;
 
