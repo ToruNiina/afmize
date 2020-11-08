@@ -255,6 +255,11 @@ read_simulator(const toml::value& config, system<Real> init)
             return read_simulated_annealing_simulator<Real, mask_by_rectangle<Real>>(
                     config, std::move(init));
         }
+        else if(mask == "nonzero")
+        {
+            return read_simulated_annealing_simulator<Real, mask_nonzero<Real>>(
+                    config, std::move(init));
+        }
         else if(mask == "none")
         {
             return read_simulated_annealing_simulator<Real, mask_nothing<Real>>(
