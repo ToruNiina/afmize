@@ -15,7 +15,7 @@ struct ScoreBase
               const image<Real>& target, const Mask& target_mask) const = 0;
 };
 
-template<typename Real, typename Mask>
+template<typename Real, typename Mask, bool UseZeroPixel>
 struct NegativeCosineSimilarity: public ScoreBase<Real, Mask>
 {
     Real k; // modulating coefficient
@@ -37,7 +37,7 @@ struct NegativeCosineSimilarity: public ScoreBase<Real, Mask>
         {
             for(std::size_t x=0; x < mask.pixel_x(); ++x)
             {
-                if(mask.is_skipped(img, x, y) || target_mask.is_skipped(target, x, y))
+                if( ! UseZeroPixel && mask(img, x, y) == 0)
                 {
                     continue;
                 }
@@ -53,7 +53,7 @@ struct NegativeCosineSimilarity: public ScoreBase<Real, Mask>
     }
 };
 
-template<typename Real, typename Mask>
+template<typename Real, typename Mask, bool UseZeroPixel>
 struct RootMeanSquareDeviation: public ScoreBase<Real, Mask>
 {
     Real k; // modulating coefficient
@@ -74,7 +74,7 @@ struct RootMeanSquareDeviation: public ScoreBase<Real, Mask>
         {
             for(std::size_t x=0; x < mask.pixel_x(); ++x)
             {
-                if(mask.is_skipped(img, x, y) || target_mask.is_skipped(target, x, y))
+                if( ! UseZeroPixel && mask(img, x, y) == 0)
                 {
                     continue;
                 }
@@ -89,7 +89,7 @@ struct RootMeanSquareDeviation: public ScoreBase<Real, Mask>
     }
 };
 
-template<typename Real, typename Mask>
+template<typename Real, typename Mask, bool UseZeroPixel>
 struct SumOfDifference: public ScoreBase<Real, Mask>
 {
     Real k; // modulating coefficient
@@ -109,7 +109,7 @@ struct SumOfDifference: public ScoreBase<Real, Mask>
         {
             for(std::size_t x=0; x < mask.pixel_x(); ++x)
             {
-                if(mask.is_skipped(img, x, y) || target_mask.is_skipped(target, x, y))
+                if( ! UseZeroPixel && mask(img, x, y) == 0)
                 {
                     continue;
                 }
@@ -147,11 +147,6 @@ struct TopographicalPenalty: public ScoreBase<Real, Mask>
         {
             for(std::size_t x=0; x < mask.pixel_x(); ++x)
             {
-                if(mask.is_skipped(img, x, y) || target_mask.is_skipped(target, x, y))
-                {
-                    continue;
-                }
-
                 const auto threshold_penalty = target_mask(target, x, y);
                 const auto threshold_reward  = target_mask(target, x, y) - thickness;
 
@@ -197,11 +192,6 @@ struct PixelPenalty: public ScoreBase<Real, Mask>
         {
             for(std::size_t x=0; x < mask.pixel_x(); ++x)
             {
-                if(mask.is_skipped(img, x, y) || target_mask.is_skipped(target, x, y))
-                {
-                    continue;
-                }
-
                 const auto threshold_penalty = target_mask(target, x, y);
                 const auto threshold_reward  = target_mask(target, x, y) - thickness;
 

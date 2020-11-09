@@ -70,13 +70,29 @@ read_score_function(const toml::value& config)
 
     if(method == "correlation")
     {
+        const auto use_zero = toml::find<bool>(score, "use_zero_pixel_in_model");
         const auto k = toml::find<Real>(score, "k");
-        return std::make_unique<NegativeCosineSimilarity<Real, Mask>>(k);
+        if(use_zero)
+        {
+            return std::make_unique<NegativeCosineSimilarity<Real, Mask, true>>(k);
+        }
+        else
+        {
+            return std::make_unique<NegativeCosineSimilarity<Real, Mask, false>>(k);
+        }
     }
     else if(method == "rmsd")
     {
+        const auto use_zero = toml::find<bool>(score, "use_zero_pixel_in_model");
         const auto k = toml::find<Real>(score, "k");
-        return std::make_unique<RootMeanSquareDeviation<Real, Mask>>(k);
+        if(use_zero)
+        {
+            return std::make_unique<RootMeanSquareDeviation<Real, Mask, true>>(k);
+        }
+        else
+        {
+            return std::make_unique<RootMeanSquareDeviation<Real, Mask, false>>(k);
+        }
     }
     else if(method == "topographical penalty")
     {
@@ -91,8 +107,7 @@ read_score_function(const toml::value& config)
         const auto penalty   = toml::find<Real>(score, "penalty");
         const auto reward    = toml::find<Real>(score, "reward");
         const auto thickness = read_as_angstrom<Real>(toml::find(score, "thickness"));
-        return std::make_unique<PixelPenalty<Real, Mask>>(
-                penalty, reward, thickness);
+        return std::make_unique<PixelPenalty<Real, Mask>>(penalty, reward, thickness);
     }
     else
     {
