@@ -249,7 +249,7 @@ struct ScanningSimulator : public SimulatorBase<Real>
                 if(high_score_.size() < num_save_ || found != high_score_.end())
                 {
                     high_score_.insert(found, std::make_pair(loc, penalty));
-                    if(10 < high_score_.size())
+                    if(num_save_ < high_score_.size())
                     {
                         high_score_.pop_back();
                     }
@@ -263,6 +263,8 @@ struct ScanningSimulator : public SimulatorBase<Real>
         std::ofstream trj(output_basename_ + ".xyz");
         std::ofstream ene(output_basename_ + ".log");
         ene << "# idx energy\n";
+
+        const auto width = std::to_string(high_score_.size()).size();
 
         std::size_t idx = 0;
         for(const auto& best : high_score_)
@@ -318,9 +320,11 @@ struct ScanningSimulator : public SimulatorBase<Real>
             sys_.cells.construct(sys_.particles, sys_.bounding_box);
 
             const auto& img = obs_->observe(sys_);
+            std::ostringstream oss;
+            oss << output_basename_ << "_" << std::setw(width) << std::setfill('0') << idx;
 
-            afmize::write_ppm(output_basename_ + "_" + std::to_string(idx), img);
-            afmize::write_tsv(output_basename_ + "_" + std::to_string(idx), img);
+            afmize::write_ppm(oss.str(), img);
+            afmize::write_tsv(oss.str(), img);
             afmize::write_xyz(output_basename_, this->sys_);
 
             ene << idx++ << ' ' << best.second << '\n';
