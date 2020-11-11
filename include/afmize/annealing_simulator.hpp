@@ -231,8 +231,10 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
 
         const auto drad = (this->generate_01() * 2.0 - 1.0) * max_dprobe_radius_;
         const auto dang = (this->generate_01() * 2.0 - 1.0) * max_dprobe_angle_;
-
-        this->try_probe_change(drad, dang, beta);
+        if(drad != 0 || dang != 0)
+        {
+            this->try_probe_change(drad, dang, beta);
+        }
 
         this->step_ += 1;
         return true;
