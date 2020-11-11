@@ -58,6 +58,71 @@ struct NegativeCosineSimilarity: public ScoreBase<Real, Mask>
 };
 
 template<typename Real, typename Mask, bool UseZeroPixel>
+struct NegativeCorrelation: public ScoreBase<Real, Mask>
+{
+    Real k; // modulating coefficient
+
+    explicit NegativeCorrelation(const Real k_): k(k_) {}
+    ~NegativeCorrelation() override = default;
+
+    Real calc(const system<Real>& sys,
+              const image<Real>& img,    const Mask& mask,
+              const image<Real>& target, const Mask& target_mask) const override
+    {
+        assert(mask.size() == target_mask.size());
+
+        std::size_t N = 0;
+        Real mean1 = 0;
+        Real mean2 = 0;
+        for(std::size_t y=0; y < mask.pixel_y(); ++y)
+        {
+            for(std::size_t x=0; x < mask.pixel_x(); ++x)
+            {
+                if( ! UseZeroPixel && mask(img, x, y) == 0)
+                {
+                    continue;
+                }
+                const auto l =        mask(img,    x, y);
+                const auto r = target_mask(target, x, y);
+
+                mean1 += l;
+                mean2 += r;
+                N     += 1;
+            }
+        }
+        if(N == 0 || mean1 == 0.0 || mean2 == 0.0)
+        {
+            return std::numeric_limits<Real>::infinity();
+        }
+        mean1 /= static_cast<Real>(N);
+        mean2 /= static_cast<Real>(N);
+
+        Real numer  = 0;
+        Real denom1 = 0;
+        Real denom2 = 0;
+
+        for(std::size_t y=0; y < mask.pixel_y(); ++y)
+        {
+            for(std::size_t x=0; x < mask.pixel_x(); ++x)
+            {
+                if( ! UseZeroPixel && mask(img, x, y) == 0)
+                {
+                    continue;
+                }
+                const auto l =        mask(img,    x, y);
+                const auto r = target_mask(target, x, y);
+
+                numer  += (l - mean1) * (r - mean2);
+                denom1 += (l - mean1) * (l - mean1);
+                denom2 += (r - mean2) * (r - mean2);
+            }
+        }
+        return k * (1.0 - numer / std::sqrt(denom1 * denom2));
+    }
+};
+
+
+template<typename Real, typename Mask, bool UseZeroPixel>
 struct RootMeanSquareDeviation: public ScoreBase<Real, Mask>
 {
     Real k; // modulating coefficient
