@@ -309,10 +309,17 @@ int main(int argc, char** argv)
 
                     if(method == "rigid")
                     {
-                        img(i, j) = afmize::discretize(
-                            afmize::collide_at(sys, probe, bottom),
-                            sys.stage_info.z_resolution(),
-                            bottom);
+                        if(sys.stage_info.z_resolution() != 0)
+                        {
+                            img(i, j) = afmize::discretize(
+                                afmize::collide_at(sys, probe, bottom),
+                                sys.stage_info.z_resolution(),
+                                bottom);
+                        }
+                        else
+                        {
+                            img(i, j) = afmize::collide_at(sys, probe, bottom);
+                        }
                     }
                     else if(method == "smooth")
                     {
