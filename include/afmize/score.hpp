@@ -49,6 +49,10 @@ struct NegativeCosineSimilarity: public ScoreBase<Real, Mask>
                 denom2 += r * r;
             }
         }
+        if(denom1 == 0 || denom2 == 0)
+        {
+            return std::numeric_limits<Real>::infinity();
+        }
         return k * (1.0 - numer / std::sqrt(denom1 * denom2));
     }
 };
@@ -84,6 +88,10 @@ struct RootMeanSquareDeviation: public ScoreBase<Real, Mask>
                 sd += (l - r) * (l - r);
                 N  += 1;
             }
+        }
+        if(N == 0)
+        {
+            return std::numeric_limits<Real>::infinity();
         }
         return k * std::sqrt(sd / static_cast<Real>(N));
     }
