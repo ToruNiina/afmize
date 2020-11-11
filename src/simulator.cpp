@@ -68,7 +68,7 @@ read_score_function(const toml::value& config)
     std::transform(method.begin(), method.end(), method.begin(),
             [](const char c) -> char {return std::tolower(c);});
 
-    if(method == "correlation")
+    if(method == "cosine similarity")
     {
         const auto use_zero = toml::find<bool>(score, "use_zero_pixel_in_model");
         const auto k = toml::find<Real>(score, "k");
@@ -79,6 +79,19 @@ read_score_function(const toml::value& config)
         else
         {
             return std::make_unique<NegativeCosineSimilarity<Real, Mask, false>>(k);
+        }
+    }
+    else if(method == "correlation")
+    {
+        const auto use_zero = toml::find<bool>(score, "use_zero_pixel_in_model");
+        const auto k = toml::find<Real>(score, "k");
+        if(use_zero)
+        {
+            return std::make_unique<NegativeCorrelation<Real, Mask, true>>(k);
+        }
+        else
+        {
+            return std::make_unique<NegativeCorrelation<Real, Mask, false>>(k);
         }
     }
     else if(method == "rmsd")
