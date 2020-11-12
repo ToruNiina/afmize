@@ -20,8 +20,7 @@ struct ScanningSimulator : public SimulatorBase<Real>
 
     struct location
     {
-        mave::matrix<Real, 3, 3> rot_axis;
-        Real rot_around_axis;
+        mave::matrix<Real, 3, 3> rot;
         std::size_t x_offset;
         std::size_t y_offset;
     };
@@ -68,12 +67,12 @@ struct ScanningSimulator : public SimulatorBase<Real>
                                      "a multiple of 4.");
         }
         const auto drot_y = 2 * pi / num_div_;
+
+        // +z
         this->axes_rot_.push_back(mave::matrix<Real, 3, 3>( 1.0,  0.0,  0.0,
                                                             0.0,  1.0,  0.0,
                                                             0.0,  0.0,  1.0));
-        this->axes_rot_.push_back(mave::matrix<Real, 3, 3>(-1.0,  0.0,  0.0,
-                                                            0.0, -1.0,  0.0,
-                                                            0.0,  0.0, -1.0));
+        // upper halves
         for(std::size_t i=1; i<num_div_/4; ++i)
         {
             const auto cos_y = std::cos(drot_y * i);
@@ -81,23 +80,16 @@ struct ScanningSimulator : public SimulatorBase<Real>
             const mave::matrix<Real, 3, 3> rot_y1( cos_y, 0.0, sin_y,
                                                      0.0, 1.0,   0.0,
                                                   -sin_y, 0.0, cos_y);
-
-            const mave::matrix<Real, 3, 3> rot_y2(-cos_y, 0.0,  sin_y,
-                                                     0.0, 1.0,    0.0,
-                                                  -sin_y, 0.0, -cos_y);
-
-            const auto drot_z = 2 * pi / i*4;
+            const auto drot_z = (2 * pi) / (i * 4);
             for(std::size_t j=0; j<i*4; ++j)
             {
-                const auto cos_z = std::cos(drot_z * i);
-                const auto sin_z = std::sin(drot_z * i);
+                const auto cos_z = std::cos(drot_z * j);
+                const auto sin_z = std::sin(drot_z * j);
 
                 const mave::matrix<Real, 3, 3> rot_z(cos_z, -sin_z, 0.0,
                                                      sin_z,  cos_z, 0.0,
                                                        0.0,    0.0, 1.0);
-
-                axes_rot_.push_back(rot_z * rot_y1); // positive
-                axes_rot_.push_back(rot_z * rot_y2); // negative
+                axes_rot_.push_back(rot_z * rot_y1);
             }
         }
         // on Equator
@@ -119,6 +111,33 @@ struct ScanningSimulator : public SimulatorBase<Real>
                 axes_rot_.push_back(rot_z * rot_y);
             }
         }
+        // -z
+        this->axes_rot_.push_back(mave::matrix<Real, 3, 3>(-1.0,  0.0,  0.0,
+                                                            0.0, -1.0,  0.0,
+                                                            0.0,  0.0, -1.0));
+        // lower halves
+        for(std::size_t i=1; i<num_div_/4; ++i)
+        {
+            const auto cos_y = std::cos(drot_y * i);
+            const auto sin_y = std::sin(drot_y * i);
+            const mave::matrix<Real, 3, 3> rot_y2(-cos_y, 0.0,  sin_y,
+                                                     0.0, 1.0,    0.0,
+                                                  -sin_y, 0.0, -cos_y);
+
+            const auto drot_z = (2 * pi) / (i * 4);
+            for(std::size_t j=0; j<i*4; ++j)
+            {
+                const auto cos_z = std::cos(drot_z * j);
+                const auto sin_z = std::sin(drot_z * j);
+
+                const mave::matrix<Real, 3, 3> rot_z(cos_z, -sin_z, 0.0,
+                                                     sin_z,  cos_z, 0.0,
+                                                       0.0,    0.0, 1.0);
+
+                axes_rot_.push_back(rot_z * rot_y2);
+            }
+        }
+
         if(axes_rot_.size() > 10000)
         {
             doutput_percent_ = 0.1;
@@ -132,6 +151,9 @@ struct ScanningSimulator : public SimulatorBase<Real>
 
         // setup progress bar
         bar_.reset_total(axes_rot_.size());
+
+//         std::ofstream debug("debug.xyz");
+//         debug.close();
     }
     ~ScanningSimulator() override = default;
 
@@ -159,6 +181,11 @@ struct ScanningSimulator : public SimulatorBase<Real>
             this->output_status();
             return false;
         }
+//         std::ofstream debug("debug.xyz", std::ios::app);
+
+        mave::vector<Real, 3> vtx1(0.0, 0.0, 1.0);
+        mave::vector<Real, 3> vtx2(0.0, 0.0, 0.0);
+        mave::vector<Real, 3> vtx3(1.0, 0.0, 0.0);
 
         const auto n = axes_rot_.at(this->step_) *
                        mave::vector<Real, 3>(0.0, 0.0, 1.0);
@@ -171,17 +198,17 @@ struct ScanningSimulator : public SimulatorBase<Real>
             const auto cos_t = std::cos(theta);
             mave::matrix<Real, 3, 3> rot;
             rot.zero();
-            rot(0, 0) = n[0] * n[0] * (1 - cos_t) +        cos_t;
-            rot(0, 1) = n[0] * n[1] * (1 - cos_t) - n[2] * sin_t;
-            rot(0, 2) = n[0] * n[2] * (1 - cos_t) + n[1] * sin_t;
+            rot(0, 0) = n[0] * n[0] * (1.0 - cos_t) +        cos_t;
+            rot(0, 1) = n[0] * n[1] * (1.0 - cos_t) - n[2] * sin_t;
+            rot(0, 2) = n[0] * n[2] * (1.0 - cos_t) + n[1] * sin_t;
 
-            rot(1, 0) = n[1] * n[0] * (1 - cos_t) + n[2] * sin_t;
-            rot(1, 1) = n[1] * n[1] * (1 - cos_t) +        cos_t;
-            rot(1, 2) = n[1] * n[2] * (1 - cos_t) - n[0] * sin_t;
+            rot(1, 0) = n[1] * n[0] * (1.0 - cos_t) + n[2] * sin_t;
+            rot(1, 1) = n[1] * n[1] * (1.0 - cos_t) +        cos_t;
+            rot(1, 2) = n[1] * n[2] * (1.0 - cos_t) - n[0] * sin_t;
 
-            rot(2, 0) = n[2] * n[0] * (1 - cos_t) - n[1] * sin_t;
-            rot(2, 1) = n[2] * n[1] * (1 - cos_t) + n[0] * sin_t;
-            rot(2, 2) = n[2] * n[2] * (1 - cos_t) +        cos_t;
+            rot(2, 0) = n[2] * n[0] * (1.0 - cos_t) - n[1] * sin_t;
+            rot(2, 1) = n[2] * n[1] * (1.0 - cos_t) + n[0] * sin_t;
+            rot(2, 2) = n[2] * n[2] * (1.0 - cos_t) +        cos_t;
 
             const auto mat = rot * axes_rot_.at(this->step_);
 
@@ -203,7 +230,15 @@ struct ScanningSimulator : public SimulatorBase<Real>
 
             sys_.cells.construct(sys_.particles, sys_.bounding_box);
 
-            this->scan_translation(location{axes_rot_.at(this->step_), theta, 0, 0});
+            const auto v1 = mat * vtx1;
+            const auto v2 = mat * vtx2;
+            const auto v3 = mat * vtx3;
+//             debug << "3\n\n";
+//             debug << "H     " << v1[0] << " " << v1[1] << " " << v1[2] << '\n';
+//             debug << "C     " << v2[0] << " " << v2[1] << " " << v2[2] << '\n';
+//             debug << "H     " << v3[0] << " " << v3[1] << " " << v3[2] << '\n';
+
+            this->scan_translation(location{mat, 0, 0});
         }
         this->step_ += 1;
         return true;
@@ -260,6 +295,7 @@ struct ScanningSimulator : public SimulatorBase<Real>
     }
     void output_status()
     {
+        std::cerr << "\nwriting best " << high_score_.size() << " conformations ... ";
         std::ofstream trj(output_basename_ + ".xyz");
         std::ofstream ene(output_basename_ + ".log");
         ene << "# idx energy\n";
@@ -272,34 +308,13 @@ struct ScanningSimulator : public SimulatorBase<Real>
             sys_ = init_;
             const Mask mask(sys_);
 
-            const auto& loc      = best.first;
-            const auto& rot_axis = loc.rot_axis;
-            const auto& theta    = loc.rot_around_axis;
-
-            const auto n = rot_axis * mave::vector<Real, 3>(0.0, 0.0, 1.0);
-
-            const auto sin_t = std::sin(theta);
-            const auto cos_t = std::cos(theta);
-            mave::matrix<Real, 3, 3> rot;
-            rot.zero();
-            rot(0, 0) = n[0] * n[0] * (1 - cos_t) +        cos_t;
-            rot(0, 1) = n[0] * n[1] * (1 - cos_t) - n[2] * sin_t;
-            rot(0, 2) = n[0] * n[2] * (1 - cos_t) + n[1] * sin_t;
-
-            rot(1, 0) = n[1] * n[0] * (1 - cos_t) + n[2] * sin_t;
-            rot(1, 1) = n[1] * n[1] * (1 - cos_t) +        cos_t;
-            rot(1, 2) = n[1] * n[2] * (1 - cos_t) - n[0] * sin_t;
-
-            rot(2, 0) = n[2] * n[0] * (1 - cos_t) - n[1] * sin_t;
-            rot(2, 1) = n[2] * n[1] * (1 - cos_t) + n[0] * sin_t;
-            rot(2, 2) = n[2] * n[2] * (1 - cos_t) +        cos_t;
-
-            const auto mat = rot * rot_axis;
+            const auto& loc = best.first;
+            const auto& rot = loc.rot;
 
             for(auto& p : this->sys_.particles)
             {
                 p.center -= this->center_;
-                p.center  = mat * p.center;
+                p.center  = rot * p.center;
                 p.center += this->center_;
             }
             sys_.bounding_box = make_bounding_box(sys_.particles);
@@ -329,6 +344,7 @@ struct ScanningSimulator : public SimulatorBase<Real>
 
             ene << idx++ << ' ' << best.second << '\n';
         }
+        std::cerr << "done.\n";
     }
 
   private:
