@@ -167,6 +167,10 @@ image<Real> read_reference_image(const toml::value& config, const stage<Real>& s
         image<Real> img(x, y);
 
         std::ifstream ifs(refname);
+        if(!ifs.good())
+        {
+            throw std::runtime_error("file open error: " + refname);
+        }
         for(std::size_t y=0; y<img.y_pixel(); ++y)
         {
             for(std::size_t x=0; x<img.x_pixel(); ++x)
