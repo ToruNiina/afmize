@@ -68,7 +68,7 @@ read_score_function(const toml::value& config)
     std::transform(method.begin(), method.end(), method.begin(),
             [](const char c) -> char {return std::tolower(c);});
 
-    if(method == "cosine similarity")
+    if(method == "cosine similarity" || method == "cosinesimilarity")
     {
         const auto use_zero = toml::find<bool>(score, "use_zero_pixel_in_model");
         const auto k = toml::find<Real>(score, "k");
