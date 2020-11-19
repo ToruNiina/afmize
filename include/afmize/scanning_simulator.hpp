@@ -23,9 +23,11 @@ struct ScanningSimulator : public SimulatorBase<Real>
         mave::matrix<Real, 3, 3> rot;
         std::size_t x_offset;
         std::size_t y_offset;
+        std::size_t z_offset;
     };
 
     ScanningSimulator(const std::size_t num_div, const std::size_t num_save,
+        Real dz_,
         image<Real> ref, system<Real> sys,
         std::unique_ptr<ObserverBase<Real>>    obs,
         std::unique_ptr<ScoreBase<Real, Mask>> score,
@@ -33,6 +35,8 @@ struct ScanningSimulator : public SimulatorBase<Real>
         : step_(0), num_save_(num_save), next_output_(0.0), doutput_percent_(1.0),
           num_div_(num_div),
           dtheta_(2 * 3.14159265 / num_div),
+          dz_(dz_),
+          max_height_(*std::max_element(ref.begin(), ref.end())),
           img_(ref.x_pixel(), ref.y_pixel()),
           reference_(std::move(ref)),
           sys_(sys),
@@ -262,33 +266,45 @@ struct ScanningSimulator : public SimulatorBase<Real>
     void scan_translation(location loc)
     {
         const Mask mask(sys_);
-        const auto& img = obs_->observe(sys_);
+        auto img = obs_->observe(sys_);
 
         const std::size_t x_rem = reference_.x_pixel() - mask.pixel_x();
         const std::size_t y_rem = reference_.y_pixel() - mask.pixel_y();
 
-        for(std::size_t y_ofs=0; y_ofs < y_rem; ++y_ofs)
+        const std::size_t z_len = std::ceil(
+                std::max(0.0, this->max_height_ - sys_.bounding_box.upper[2]) / this->dz_) + 1;
+
+        for(std::size_t z_ofs=0; z_ofs < z_len; ++z_ofs)
         {
-            for(std::size_t x_ofs=0; x_ofs < x_rem; ++x_ofs)
+            loc.z_offset = z_ofs;
+            for(std::size_t y_ofs=0; y_ofs < y_rem; ++y_ofs)
             {
-                loc.x_offset = x_ofs;
                 loc.y_offset = y_ofs;
-
-                const Mask target_mask(sys_, x_ofs, mask.pixel_x(),
-                                             y_ofs, mask.pixel_y());
-                const auto penalty = this->score_->calc(sys_, img, mask, reference_, target_mask);
-
-                const auto found = std::lower_bound(high_score_.begin(), high_score_.end(),
-                        penalty, [](const auto& lhs, const Real& p) {return lhs.second < p;});
-
-                if(high_score_.size() < num_save_ || found != high_score_.end())
+                for(std::size_t x_ofs=0; x_ofs < x_rem; ++x_ofs)
                 {
-                    high_score_.insert(found, std::make_pair(loc, penalty));
-                    if(num_save_ < high_score_.size())
+                    loc.x_offset = x_ofs;
+
+                    const Mask target_mask(sys_, x_ofs, mask.pixel_x(),
+                                                 y_ofs, mask.pixel_y());
+                    const auto penalty = this->score_->calc(sys_, img, mask, reference_, target_mask);
+
+                    const auto found = std::lower_bound(high_score_.begin(), high_score_.end(),
+                            penalty, [](const auto& lhs, const Real& p) {return lhs.second < p;});
+
+                    if(high_score_.size() < num_save_ || found != high_score_.end())
                     {
-                        high_score_.pop_back();
+                        high_score_.insert(found, std::make_pair(loc, penalty));
+                        if(num_save_ < high_score_.size())
+                        {
+                            high_score_.pop_back();
+                        }
                     }
                 }
+            }
+
+            for(auto& pxl : img)
+            {
+                pxl += this->dz_;
             }
         }
         return;
@@ -322,7 +338,7 @@ struct ScanningSimulator : public SimulatorBase<Real>
             const auto trans = mave::vector<Real, 3>(
                 sys_.stage_info.x_resolution() * (static_cast<std::int64_t>(loc.x_offset) - static_cast<std::int64_t>(mask.lower_bounding_x())),
                 sys_.stage_info.y_resolution() * (static_cast<std::int64_t>(loc.y_offset) - static_cast<std::int64_t>(mask.lower_bounding_y())),
-               -sys_.bounding_box.lower[2]);
+               -sys_.bounding_box.lower[2] + this->dz_ * loc.z_offset);
 
             // align the bottom to the xy plane (z=0.0)
             for(auto& p : this->sys_.particles)
@@ -338,7 +354,7 @@ struct ScanningSimulator : public SimulatorBase<Real>
             std::ostringstream oss;
             oss << output_basename_ << "_" << std::setw(width) << std::setfill('0') << idx;
 
-            afmize::write_ppm(oss.str(), img);
+            afmize::write_svg(oss.str(), img, sys_, 0.0);
             afmize::write_tsv(oss.str(), img);
             afmize::write_xyz(output_basename_, this->sys_);
 
@@ -357,6 +373,9 @@ struct ScanningSimulator : public SimulatorBase<Real>
     Real        dtheta_;
     std::vector<mave::matrix<Real, 3, 3>> axes_rot_;
     mave::vector<Real, 3> center_;
+
+    Real dz_;
+    Real max_height_;
 
     // pairof{pairof{axis rotation, rotation around axis}, score}
     std::vector<std::pair<location, Real>> high_score_;

@@ -261,11 +261,12 @@ read_scanning_simulator(const toml::value& config, system<Real> init)
     const auto& sim = toml::find(config, "simulator");
     const auto num_div  = toml::find<std::size_t>(sim, "num_division");
     const auto num_save = toml::find<std::size_t>(sim, "save");
+    const auto dz       = read_as_angstrom<Real>(toml::find(sim, "dz"));
 
     auto ref = read_reference_image(config, init.stage_info);
 
     return std::make_unique<ScanningSimulator<Real, Mask>>(
-        num_div, num_save,
+        num_div, num_save, dz,
         std::move(ref),
         std::move(init),
         read_observation_method<Real>(config),
