@@ -5,6 +5,7 @@
 #include "shapes.hpp"
 #include "system.hpp"
 #include "stage.hpp"
+#include <map>
 
 namespace afmize
 {
@@ -72,8 +73,9 @@ struct ObserverBase
 {
     virtual ~ObserverBase() = default;
     virtual image<Real> const& observe(const system<Real>&) = 0;
-    virtual void update_probe(const default_probe<Real>&) = 0;
-    virtual default_probe<Real> get_probe() const = 0;
+    virtual bool update_probe(const std::map<std::string, Real>&) = 0;
+    virtual std::map<std::string, Real> get_probe() const = 0;
+    virtual void print_probe(std::ostream&) const = 0;
     virtual image<Real> const&  get_image() const = 0;
 };
 
@@ -203,13 +205,35 @@ struct RigidObserver: public ObserverBase<Real>
         return img_;
     }
 
-    void update_probe(const default_probe<Real>& p) override
+    bool update_probe(const std::map<std::string, Real>& attr) override
     {
-        probe = p;
-        return ;
+        bool is_updated = false;
+        if(0.0 < attr.at("radius"))
+        {
+            probe.radius = attr.at("radius");
+            is_updated   = true;
+        }
+        if(0.0 < attr.at("angle") && attr.at("angle") < 3.1416 * 0.5)
+        {
+            probe.angle = attr.at("angle");
+            is_updated  = true;
+        }
+        return is_updated;
     }
 
-    default_probe<Real> get_probe() const override {return probe;}
+    void print_probe(std::ostream& os) const override
+    {
+        os << probe.radius * 0.1 << "[nm] " << probe.angle * 180.0 / 3.1416 << "[rad]";
+    }
+
+    std::map<std::string, Real> get_probe() const override
+    {
+        return std::map<std::string, Real>{
+            {"radius", probe.radius},
+            {"angle",  probe.angle }
+        };
+    }
+
     image<Real> const&  get_image() const override {return img_;}
 
     default_probe<Real> probe;

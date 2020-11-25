@@ -8,6 +8,7 @@
 #include "system.hpp"
 #include "stage.hpp"
 #include "score.hpp"
+#include <map>
 #include <random>
 #include <iostream>
 
@@ -74,7 +75,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
             const std::uint32_t seed,
             const Real sigma_x,  const Real sigma_y,  const Real sigma_z,
             const Real max_rotx, const Real max_roty, const Real max_rotz,
-            const Real max_dprobe_radius, const Real max_dprobe_angle,
+            const std::map<std::string, Real>& max_dprobe,
             image<Real>         ref,
             system<Real>        sys,
             std::unique_ptr<ObserverBase<Real>> obs,
@@ -90,8 +91,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
           max_drotx_(max_rotx),
           max_droty_(max_roty),
           max_drotz_(max_rotz),
-          max_dprobe_radius_(max_dprobe_radius),
-          max_dprobe_angle_(max_dprobe_angle),
+          dprobe_(max_dprobe),
           rng_(seed),
           nrm_(0.0, 1.0),
           reference_(std::move(ref)),
@@ -114,8 +114,10 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         {
             std::ofstream trj(output_basename_ + ".xyz");
         }
-        std::ofstream ene(output_basename_ + ".log");
-        ene << "# step energy radius[nm] angle[degree]\n";
+        {
+            std::ofstream ene(output_basename_ + ".log");
+            ene << "# step energy probe_shape\n";
+        }
     }
     ~SimulatedAnnealingSimulator() override = default;
 
@@ -147,12 +149,10 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
             afmize::write_tsv(output_basename_ + "_result", this->current_image());
 
             std::ofstream ene(output_basename_ + ".log", std::ios::app);
-            const auto p = obs_->get_probe();
             ene << this->step_
-                << " " << this->current_energy_
-                << " " << p.radius * 0.1
-                << " " << p.angle * 180.0 / 3.1416
-                << "\n";
+                << " " << this->current_energy_;
+            obs_->print_probe(ene);
+            ene << "\n";
             std::cerr << bar_.format(this->step_);
 
             return false;
@@ -166,12 +166,10 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
             afmize::write_tsv(fname,           this->current_image());
 
             std::ofstream ene(output_basename_ + ".log", std::ios::app);
-            const auto p = obs_->get_probe();
             ene << this->step_
-                << " " << this->current_energy_
-                << " " << p.radius * 0.1
-                << " " << p.angle * 180.0 / 3.1416
-                << "\n";
+                << " " << this->current_energy_;
+            obs_->print_probe(ene);
+            ene << "\n";
 
             std::cerr << bar_.format(this->step_);
         }
@@ -229,12 +227,8 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         mat(2, 2) = 1.0;
         this->try_rotation(mat, beta);
 
-        const auto drad = (this->generate_01() * 2.0 - 1.0) * max_dprobe_radius_;
-        const auto dang = (this->generate_01() * 2.0 - 1.0) * max_dprobe_angle_;
-        if(drad != 0 || dang != 0)
-        {
-            this->try_probe_change(drad, dang, beta);
-        }
+        // try to change probe
+        this->try_probe_change(beta);
 
         this->step_ += 1;
         return true;
@@ -432,26 +426,18 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         return;
     }
 
-    void try_probe_change(const Real drad, const Real dang, const Real beta)
+    void try_probe_change(const Real beta)
     {
-        const auto current_probe = obs_->get_probe();
-        auto next_probe = current_probe;
-
-        next_probe.radius += drad;
-        if(next_probe.radius < 0)
+        const auto prev_state = obs_->get_probe();
+        auto probe_state = prev_state;
+        for(auto& kv : probe_state)
         {
-            next_probe.radius = current_probe.radius;
+            kv.second += (this->generate_01() * 2.0 - 1.0) * dprobe_.at(kv.first);
         }
-        next_probe.angle  += dang;
-        if(next_probe.angle < 0)
+        if( ! obs_->update_probe(probe_state))
         {
-            next_probe.angle = 0;
+            return ;
         }
-        else if(3.14159265 * 0.5 <= next_probe.angle)
-        {
-            next_probe.angle = 3.14159265 * 0.5;
-        }
-        obs_->update_probe(next_probe);
 
         // calculate score depending on score function
         obs_->observe(next_);
@@ -471,11 +457,10 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         else
         {
             // if energy increases, go back to the original probe
-            obs_->update_probe(current_probe);
+            obs_->update_probe(prev_state);
         }
         return;
     }
-
 
     Real generate_01() noexcept
     {
@@ -495,8 +480,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
     Real max_droty_;
     Real max_drotz_;
 
-    Real max_dprobe_radius_;
-    Real max_dprobe_angle_;
+    std::map<std::string, Real> dprobe_;
 
     std::mt19937                             rng_;
     std::normal_distribution<Real>           nrm_;
