@@ -22,9 +22,7 @@ struct ScanningSimulator : public SimulatorBase<Real>
     struct location
     {
         mave::matrix<Real, 3, 3> rot;
-        std::size_t x_offset;
-        std::size_t y_offset;
-        std::size_t z_offset;
+        mave::vector<Real, 3> trans;
     };
 
     ScanningSimulator(const std::size_t num_div, const std::size_t num_save,
@@ -162,7 +160,6 @@ struct ScanningSimulator : public SimulatorBase<Real>
     void run() override
     {
         while(this->step()) {}
-        std::cerr << bar_.format(this->step_);
     }
     bool run(const std::size_t steps) override
     {
@@ -171,7 +168,6 @@ struct ScanningSimulator : public SimulatorBase<Real>
         {
             this->step();
         }
-        std::cerr << bar_.format(this->step_);
         return step_ < this->axes_rot_.size();
     }
 
@@ -235,7 +231,7 @@ struct ScanningSimulator : public SimulatorBase<Real>
             const auto v2 = mat * vtx2;
             const auto v3 = mat * vtx3;
 
-            this->scan_translation(location{mat, 0, 0});
+            this->scan_translation(location{mat, mave::vector<Real, 3>(0.0, 0.0, 0.0)});
         }
         this->step_ += 1;
         return true;
@@ -264,7 +260,7 @@ struct ScanningSimulator : public SimulatorBase<Real>
 
         for(std::size_t z_ofs=0; z_ofs < z_len; ++z_ofs)
         {
-            loc.z_offset = z_ofs;
+            loc.trans[2] = this->dz_ * z_ofs;
             auto img = obs_->observe(sys_);
 
             const mask_type mask(img);
@@ -273,10 +269,15 @@ struct ScanningSimulator : public SimulatorBase<Real>
 
             for(std::size_t y_ofs=0; y_ofs < y_rem; ++y_ofs)
             {
-                loc.y_offset = y_ofs;
+                const std::int64_t y_offset(y_ofs);
+                const std::int64_t y_lowerb(mask.lower_bounding_y());
+
+                loc.trans[1] = (y_offset - y_lowerb) * sys_.stage_info.y_resolution();
                 for(std::size_t x_ofs=0; x_ofs < x_rem; ++x_ofs)
                 {
-                    loc.x_offset = x_ofs;
+                    const std::int64_t x_offset(x_ofs);
+                    const std::int64_t x_lowerb(mask.lower_bounding_x());
+                    loc.trans[0] = (x_offset - x_lowerb) * sys_.stage_info.x_resolution();
 
                     const mask_type target_mask(sys_, x_ofs, mask.pixel_x(),
                                                       y_ofs, mask.pixel_y());
@@ -315,7 +316,6 @@ struct ScanningSimulator : public SimulatorBase<Real>
         for(const auto& best : high_score_)
         {
             sys_ = init_;
-            const mask_type mask(sys_);
 
             const auto& loc = best.first;
             const auto& rot = loc.rot;
@@ -327,19 +327,21 @@ struct ScanningSimulator : public SimulatorBase<Real>
                 p.center += this->center_;
             }
             sys_.bounding_box = make_bounding_box(sys_.particles);
-
-            const auto trans = mave::vector<Real, 3>(
-                sys_.stage_info.x_resolution() * (static_cast<std::int64_t>(loc.x_offset) - static_cast<std::int64_t>(mask.lower_bounding_x())),
-                sys_.stage_info.y_resolution() * (static_cast<std::int64_t>(loc.y_offset) - static_cast<std::int64_t>(mask.lower_bounding_y())),
-               -sys_.bounding_box.lower[2] + this->dz_ * loc.z_offset);
+            // align the bottom to the xy plane (z=0.0)
+            for(auto& p : this->sys_.particles)
+            {
+                p.center[2] -= sys_.bounding_box.lower[2];
+            }
+            sys_.bounding_box.upper[2] -= sys_.bounding_box.lower[2];
+            sys_.bounding_box.lower[2]  = 0.0;
 
             // align the bottom to the xy plane (z=0.0)
             for(auto& p : this->sys_.particles)
             {
-                p.center += trans;
+                p.center += loc.trans;
             }
-            sys_.bounding_box.upper += trans;
-            sys_.bounding_box.lower += trans;
+            sys_.bounding_box.upper += loc.trans;
+            sys_.bounding_box.lower += loc.trans;
 
             sys_.cells.construct(sys_.particles, sys_.bounding_box);
 

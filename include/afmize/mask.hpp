@@ -18,8 +18,8 @@ struct mask_nothing
         : pixel_x_(sys.stage_info.x_pixel()), pixel_y_(sys.stage_info.y_pixel())
     {}
     mask_nothing(const system<Real>& sys,
-                      const std::size_t, const std::size_t,
-                      const std::size_t, const std::size_t)
+                 const std::size_t, const std::size_t,
+                 const std::size_t, const std::size_t)
         : pixel_x_(sys.stage_info.x_pixel()), pixel_y_(sys.stage_info.y_pixel())
     {}
 
