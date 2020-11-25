@@ -314,9 +314,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
     {
         next_ = sys_;
 
-        // translation does not change the shape of bounding box.
-        next_.bounding_box.upper += dr;
-        next_.bounding_box.lower += dr;
+        this->translate(dt, next_);
 
         // avoid particle from escaping observation stage.
         // To fix the number of pixels when calculating score, it does not
@@ -329,31 +327,10 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
             return ;
         }
 
-//         if(next_.bounding_box.lower[2] < 0.0)
-        {
-            const auto offset = next_.bounding_box.lower[2];
-            dr[2]                       -= offset;
-            next_.bounding_box.upper[2] -= offset;
-            next_.bounding_box.lower[2] -= offset;
-        }
-
-        // apply the movement
-        for(auto& p : this->next_.particles)
-        {
-            p.center += dr;
-        }
-
-        // update cell list
-        next_.cells.construct(next_.particles, next_.bounding_box);
-
         // calculate score depending on score function
         const auto& next_img = obs_->observe(next_);
         const auto energy = score_->calc(next_, obs_->get_image(), Mask(next_img), reference_, Mask(next_img));
         const auto deltaE = energy - current_energy_;
-
-//         std::cerr << "beta = " << beta << ", dE = " << deltaE
-//                   << ", Enext = " << energy << ", Ecurr = " << current_energy_
-//                   << ", prob = " << std::exp(-deltaE * beta) << std::endl;
 
         if(deltaE <= 0.0 || this->generate_01() < std::exp(-deltaE * beta))
         {
@@ -368,62 +345,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
     {
         next_ = sys_;
 
-        // apply the movement.
-        // 1. move center to origin
-        // 2. apply rotation matrix
-        // 3. move back to the original center
-
-        mave::vector<Real, 3> com(0.0, 0.0, 0.0);
-        for(const auto& p : this->next_.particles)
-        {
-            com += p.center;
-        }
-        com /= static_cast<Real>(next_.particles.size());
-
-        mave::matrix<Real, 4, 4> translation1;
-        translation1.zero();
-        translation1(0, 0) = 1.0;
-        translation1(1, 1) = 1.0;
-        translation1(2, 2) = 1.0;
-        translation1(3, 3) = 1.0;
-        translation1(0, 3) = -com[0];
-        translation1(1, 3) = -com[1];
-        translation1(2, 3) = -com[2];
-
-        mave::matrix<Real, 4, 4> rotation;
-        rotation.zero();
-        rotation(0, 0) = rot(0, 0);
-        rotation(0, 1) = rot(0, 1);
-        rotation(0, 2) = rot(0, 2);
-        rotation(1, 0) = rot(1, 0);
-        rotation(1, 1) = rot(1, 1);
-        rotation(1, 2) = rot(1, 2);
-        rotation(2, 0) = rot(2, 0);
-        rotation(2, 1) = rot(2, 1);
-        rotation(2, 2) = rot(2, 2);
-        rotation(3, 3) = 1.0;
-
-        mave::matrix<Real, 4, 4> translation2;
-        translation2.zero();
-        translation2(0, 0) = 1.0;
-        translation2(1, 1) = 1.0;
-        translation2(2, 2) = 1.0;
-        translation2(3, 3) = 1.0;
-        translation2(0, 3) = com[0];
-        translation2(1, 3) = com[1];
-        translation2(2, 3) = com[2];
-
-        const mave::matrix<Real, 4, 4> matrix = translation2 * rotation * translation1;
-        for(auto& p : this->next_.particles)
-        {
-            mave::vector<Real, 4> r(p.center[0], p.center[1], p.center[2], 1.0);
-            r = matrix * r;
-            p.center[0] = r[0];
-            p.center[1] = r[1];
-            p.center[2] = r[2];
-        }
-
-        next_.bounding_box = make_bounding_box(next_.particles);
+        this->rotate(rot, next_);
 
         // avoid particle from escaping observation stage
         if(next_.bounding_box.lower[0] < sys_.stage_info.x_range().first  ||
@@ -434,31 +356,11 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
             return ;
         }
 
-//         if(next_.bounding_box.lower[2] < 0.0)
-        {
-            // align the bottom to the xy plane (z=0.0)
-            for(auto& p : this->next_.particles)
-            {
-                p.center[2] -= next_.bounding_box.lower[2];
-            }
-            next_.bounding_box.upper[2] -= next_.bounding_box.lower[2];
-            next_.bounding_box.lower[2]  = 0.0;
-        }
-
-        // update cell list
-        next_.cells.construct(next_.particles, next_.bounding_box);
-
         // calculate score depending on score function
         const auto& next_img = obs_->observe(next_);
-        const auto energy = score_->calc(next_, obs_->get_image(), Mask(next_img), reference_, Mask(next_img));
+        const auto energy = score_->calc(next_, obs_->get_image(), Mask(next_img),
+                                                reference_, Mask(next_img));
         const auto deltaE = energy - current_energy_;
-
-//         std::cerr << "beta = " << beta << ", dE = " << deltaE
-//                   << ", Enext = " << energy << ", Ecurr = " << current_energy_
-//                   << ", prob = " << std::exp(-deltaE * beta) << std::endl;
-
-//         std::cerr << "trial energy = " << energy << std::endl;
-//         std::cerr << "trial deltaE = " << deltaE << std::endl;
 
         if(deltaE <= 0.0 || this->generate_01() < std::exp(-deltaE * beta))
         {
@@ -508,6 +410,102 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
     Real generate_01() noexcept
     {
         return std::generate_canonical<Real, std::numeric_limits<Real>::digits>(rng_);
+    }
+
+    void translate(const mave::vector<Real, 3>& dr, system<Real>& target)
+    {
+        // translation does not change the shape of bounding box.
+        target.bounding_box.upper += dr;
+        target.bounding_box.lower += dr;
+
+        if(target.bounding_box.lower[2] < 0.0)
+        {
+            const auto offset = target.bounding_box.lower[2];
+            dr[2]                        -= offset;
+            target.bounding_box.upper[2] -= offset;
+            target.bounding_box.lower[2] -= offset;
+        }
+
+        // apply the movement
+        for(auto& p : this->target.particles)
+        {
+            p.center += dr;
+        }
+
+        // update cell list
+        target.cells.construct(target.particles, target.bounding_box);
+        return ;
+    }
+    void rotate(const mave::matrix<Real, 3, 3>& rot, system<Real>& target)
+    {
+        // 1. move center to origin
+        // 2. apply rotation matrix
+        // 3. move back to the original center
+
+        mave::vector<Real, 3> com(0.0, 0.0, 0.0);
+        for(const auto& p : this->target.particles)
+        {
+            com += p.center;
+        }
+        com /= static_cast<Real>(target.particles.size());
+
+        mave::matrix<Real, 4, 4> translation1;
+        translation1.zero();
+        translation1(0, 0) = 1.0;
+        translation1(1, 1) = 1.0;
+        translation1(2, 2) = 1.0;
+        translation1(3, 3) = 1.0;
+        translation1(0, 3) = -com[0];
+        translation1(1, 3) = -com[1];
+        translation1(2, 3) = -com[2];
+
+        mave::matrix<Real, 4, 4> rotation;
+        rotation.zero();
+        rotation(0, 0) = rot(0, 0);
+        rotation(0, 1) = rot(0, 1);
+        rotation(0, 2) = rot(0, 2);
+        rotation(1, 0) = rot(1, 0);
+        rotation(1, 1) = rot(1, 1);
+        rotation(1, 2) = rot(1, 2);
+        rotation(2, 0) = rot(2, 0);
+        rotation(2, 1) = rot(2, 1);
+        rotation(2, 2) = rot(2, 2);
+        rotation(3, 3) = 1.0;
+
+        mave::matrix<Real, 4, 4> translation2;
+        translation2.zero();
+        translation2(0, 0) = 1.0;
+        translation2(1, 1) = 1.0;
+        translation2(2, 2) = 1.0;
+        translation2(3, 3) = 1.0;
+        translation2(0, 3) = com[0];
+        translation2(1, 3) = com[1];
+        translation2(2, 3) = com[2];
+
+        const mave::matrix<Real, 4, 4> matrix = translation2 * rotation * translation1;
+        for(auto& p : this->target.particles)
+        {
+            mave::vector<Real, 4> r(p.center[0], p.center[1], p.center[2], 1.0);
+            r = matrix * r;
+            p.center[0] = r[0];
+            p.center[1] = r[1];
+            p.center[2] = r[2];
+        }
+        target.bounding_box = make_bounding_box(target.particles);
+
+        if(target.bounding_box.lower[2] < 0.0)
+        {
+            // align the bottom to the xy plane (z=0.0)
+            for(auto& p : this->target.particles)
+            {
+                p.center[2] -= target.bounding_box.lower[2];
+            }
+            target.bounding_box.upper[2] -= target.bounding_box.lower[2];
+            target.bounding_box.lower[2]  = 0.0;
+        }
+        // update cell list
+        target.cells.construct(target.particles, target.bounding_box);
+        return;
     }
 
     void warm_up()
