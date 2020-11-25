@@ -14,13 +14,14 @@ namespace afmize
 template<typename Real>
 struct mask_nothing
 {
-    explicit mask_nothing(const system<Real>& sys)
-        : pixel_x_(sys.stage_info.x_pixel()), pixel_y_(sys.stage_info.y_pixel())
-    {}
     mask_nothing(const system<Real>& sys,
                  const std::size_t, const std::size_t,
                  const std::size_t, const std::size_t)
         : pixel_x_(sys.stage_info.x_pixel()), pixel_y_(sys.stage_info.y_pixel())
+    {}
+
+    explicit mask_nothing(const image<Real>& img)
+        : pixel_x_(img.x_pixel()), pixel_y_(img.y_pixel())
     {}
 
     Real operator()(const image<Real>& img,
@@ -48,38 +49,7 @@ struct mask_nothing
 template<typename Real>
 struct mask_by_rectangle
 {
-    // here, to make the area uniform, it uses sphere first
-    explicit mask_by_rectangle(const system<Real>& mol)
-        : mask_by_rectangle(mol, sphere<Real>{mol.bounding_radius,
-            std::accumulate(
-                mol.particles.begin(), mol.particles.end(), mave::vector<Real, 3>(0,0,0),
-                [](const mave::vector<Real, 3>& s, const sphere<Real>& p) noexcept {
-                    return s + p.center;
-                }) / static_cast<Real>(mol.particles.size())
-            })
-    {}
-
-    mask_by_rectangle(const system<Real>& mol, const sphere<Real>& bs)
-    {
-        const std::int64_t hw_x = std::ceil(bs.radius / mol.stage_info.x_resolution());
-        const std::int64_t hw_y = std::ceil(bs.radius / mol.stage_info.x_resolution());
-
-        const Real stage_lw_x = mol.stage_info.x_range().first;
-        const Real stage_lw_y = mol.stage_info.y_range().first;
-
-        const std::int64_t xth = std::ceil((bs.center[0] - stage_lw_x) / mol.stage_info.x_resolution());
-        const std::int64_t yth = std::ceil((bs.center[1] - stage_lw_y) / mol.stage_info.y_resolution());
-        // both ends are included
-        this->x_lower_ = std::max<std::int64_t>(0, xth - hw_x);
-        this->x_upper_ = std::min<std::int64_t>(mol.stage_info.x_pixel(), xth + hw_x + 1);
-        this->y_lower_ = std::max<std::int64_t>(0, yth - hw_y);
-        this->y_upper_ = std::min<std::int64_t>(mol.stage_info.y_pixel(), yth + hw_y + 1);
-
-        this->pixel_x_ = x_upper_ - x_lower_;
-        this->pixel_y_ = y_upper_ - y_lower_;
-    }
-
-    mask_by_rectangle(const image<Real>& img) // nonzero
+    explicit mask_by_rectangle(const image<Real>& img) // nonzero
     {
         x_lower_ = std::numeric_limits<std::size_t>::max();
         x_upper_ = 0;
