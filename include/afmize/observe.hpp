@@ -246,8 +246,8 @@ struct RigidObserver: public ObserverBase<Real>
 template<typename Real, bool Descritize>
 struct SmoothObserver: public ObserverBase<Real>
 {
-    explicit SmoothObserver(const Real sigma, const Real gamma = 1.0, // angst.
-                            const Real cutoff_sigma = 5.0)
+    explicit SmoothObserver(const Real sigma,
+            const Real gamma = 1.0 /*angst.*/, const Real cutoff_sigma = 5.0)
         : sigma_(sigma), gamma_(gamma), rgamma_(1.0 / gamma), cutoff_(cutoff_sigma)
     {}
     ~SmoothObserver() override = default;
@@ -259,8 +259,7 @@ struct SmoothObserver: public ObserverBase<Real>
 
         const auto rsigma    = 1.0 / sigma_;
         const auto rsigma_sq = rsigma * rsigma;
-        const auto cutoff    = sigma_ * cutoff_;
-        const auto cutoff_sq = cutoff * cutoff;
+        const auto cutoff_sq = (sigma_ * cutoff_) * (sigma_ * cutoff_);
 
         std::vector<std::size_t> cells;
         cells.reserve(25);
@@ -273,7 +272,7 @@ struct SmoothObserver: public ObserverBase<Real>
 
             Real expsum = 1.0; // exp(z_0 = 0.0)
 
-            sys.cells.overwrapping_cells(cutoff, i, j, cells);
+            sys.cells.overwrapping_cells(sigma_ * cutoff_, sigma_ * cutoff_, i, j, cells);
             for(const auto& cell_idx : cells)
             {
                 for(const auto& elem : sys.cells.cell_at(cell_idx))
@@ -283,9 +282,9 @@ struct SmoothObserver: public ObserverBase<Real>
                     const auto dx_sq = dr[0] * dr[0];
                     const auto dy_sq = dr[1] * dr[1];
 
-                    if(cutoff_sq < dx_sq + dy_sq) {continue;}
+                    if(cutoff_sq < dx_sq || cutoff_sq < dy_sq) {continue;}
 
-                    expsum += std::exp(-(dx_sq + dy_sq) * rsigma_sq +
+                    expsum += std::exp(-(dx_sq * rsigma_sq + dy_sq * rsigma_sq) +
                                         (p.radius + p.center[2]) * rgamma_);
                 }
             }
@@ -306,16 +305,17 @@ struct SmoothObserver: public ObserverBase<Real>
 
     bool update_probe(const std::map<std::string, Real>& attr) override
     {
+        bool is_updated = false;
         if(0.0 < attr.at("sigma"))
         {
             sigma_ = attr.at("sigma");
-            return true;
+            is_updated = true;
         }
-        return false;
+        return is_updated;
     }
     void print_probe(std::ostream& os) const override
     {
-        os << sigma_ * 0.1 << "[nm]";
+        os << sigma_ * 0.1 << " [nm]";
     }
     std::map<std::string, Real> get_probe() const override
     {

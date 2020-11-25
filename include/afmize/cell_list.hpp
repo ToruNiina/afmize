@@ -244,15 +244,15 @@ struct cell_list
     }
 
     // returns cells that forms a rectangle that overlaps with a circle
-    void overwrapping_cells(const Real radius,
+    void overwrapping_cells(const Real width_x, const Real width_y,
             const std::size_t x, const std::size_t y, std::vector<std::size_t>& out)
     {
         out.clear();
 
         const std::int32_t ctr_x = x;
         const std::int32_t ctr_y = y;
-        const std::int32_t ofs_x = radius * rcw_x_;
-        const std::int32_t ofs_y = radius * rcw_y_;
+        const std::int32_t ofs_x = width_x * rcw_x_;
+        const std::int32_t ofs_y = width_y * rcw_y_;
 
         for(std::int32_t y = std::max(0, ctr_y - ofs_y); y <= std::min<std::int32_t>(y_size_, ctr_y + ofs_y); ++y)
         {
