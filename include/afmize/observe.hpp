@@ -243,5 +243,100 @@ struct RigidObserver: public ObserverBase<Real>
     std::vector<std::size_t> index_buffer_; // avoid allocation
 };
 
+template<typename Real, bool Descritize>
+struct SmoothObserver: public ObserverBase<Real>
+{
+    explicit SmoothObserver(const Real sigma, const Real gamma = 1.0, // angst.
+                            const Real cutoff_sigma = 5.0)
+        : sigma_(sigma), gamma_(gamma), rgamma_(1.0 / gamma), cutoff_(cutoff_sigma)
+    {}
+    ~SmoothObserver() override = default;
+
+    // here we assume the stage locates z == 0.
+    image<Real> const& observe(const system<Real>& sys) override
+    {
+        img_.resize(sys.stage_info.x_pixel(), sys.stage_info.y_pixel());
+
+        const auto rsigma    = 1.0 / sigma_;
+        const auto rsigma_sq = rsigma * rsigma;
+        const auto cutoff    = sigma_ * cutoff_;
+        const auto cutoff_sq = cutoff * cutoff;
+
+        std::vector<std::size_t> cells;
+        cells.reserve(25);
+
+        for(std::size_t j=0; j<sys.stage_info.y_pixel(); ++j)
+        {
+        for(std::size_t i=0; i<sys.stage_info.x_pixel(); ++i)
+        {
+            const auto pos = sys.stage_info.position_at(i, j);
+
+            Real expsum = 1.0; // exp(z_0 = 0.0)
+
+            sys.cells.overwrapping_cells(cutoff, i, j, cells);
+            for(const auto& cell_idx : cells)
+            {
+                for(const auto& elem : sys.cells.cell_at(cell_idx))
+                {
+                    const auto& p = sys.particles.at(elem.particle_idx);
+                    const auto dr = p.center - pos;
+                    const auto dx_sq = dr[0] * dr[0];
+                    const auto dy_sq = dr[1] * dr[1];
+
+                    if(cutoff_sq < dx_sq + dy_sq) {continue;}
+
+                    expsum += std::exp(-(dx_sq + dy_sq) * rsigma_sq +
+                                        (p.radius + p.center[2]) * rgamma_);
+                }
+            }
+            const auto height = gamma_ * std::log(expsum);
+
+            if (Descritize)
+            {
+                img_(i, j) = afmize::discretize(height, sys.stage_info.z_resolution(), Real(0));
+            }
+            else
+            {
+                img_(i, j) = height;
+            }
+        }
+        }
+        return img_;
+    }
+
+    bool update_probe(const std::map<std::string, Real>& attr) override
+    {
+        if(0.0 < attr.at("sigma"))
+        {
+            sigma_ = attr.at("sigma");
+            return true;
+        }
+        return false;
+    }
+    void print_probe(std::ostream& os) const override
+    {
+        os << sigma_ * 0.1 << "[nm]";
+    }
+    std::map<std::string, Real> get_probe() const override
+    {
+        return std::map<std::string, Real>{
+            {"sigma", sigma_},
+        };
+    }
+
+    image<Real> const&  get_image() const override {return img_;}
+
+  private:
+
+    Real sigma_;
+    Real gamma_;
+    Real rgamma_;
+    Real cutoff_;
+
+    image<Real> img_;
+    std::vector<std::size_t> index_buffer_; // avoid allocation
+};
+
+
 } // afmize
 #endif// AFMIZE_OBSERVE_HPP
