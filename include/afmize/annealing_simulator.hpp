@@ -20,6 +20,10 @@ struct ScheduleBase
 {
     virtual ~ScheduleBase() = default;
     virtual Real temperature(const std::size_t tstep) const noexcept = 0;
+    virtual Real init_temperature(const Real) const noexcept = 0;
+    virtual Real last_temperature(const Real) const noexcept = 0;
+    virtual Real set_init_temperature(const Real) = 0;
+    virtual Real set_last_temperature(const Real) = 0;
 };
 
 template<typename Real>
@@ -35,6 +39,18 @@ struct LinearSchedule : public ScheduleBase<Real>
     {
         const auto t = static_cast<Real>(tstep) / static_cast<Real>(total_step_);
         return t * (last_ - init_) + init_;
+    }
+
+    Real init_temperature() const noexcept override {return init_;}
+    Real last_temperature() const noexcept override {return last_;}
+
+    void set_last_temperature(const Real init) override
+    {
+        this->init_ = init;
+    }
+    void set_last_temperature(const Real last) override
+    {
+        this->last_ = last;
     }
 
   private:
@@ -57,6 +73,28 @@ struct ExponentialSchedule: public ScheduleBase<Real>
     {
         const auto t = static_cast<Real>(tstep) / static_cast<Real>(total_step_);
         return init_ * std::exp(coef_ * t);
+    }
+
+    Real init_temperature() const noexcept override {return init_;}
+    Real last_temperature() const noexcept override {return last_;}
+
+    void set_last_temperature(const Real init) override
+    {
+        this->init_ = init;
+        if(this->init_ <= 0)
+        {
+            this->init_ = 1e-7;
+        }
+        coef_ = std::log(last_ / init_);
+    }
+    void set_last_temperature(const Real last) override
+    {
+        this->last_ = last;
+        if(this->last_ <= 0)
+        {
+            this->last_ = 1e-7;
+        }
+        coef_ = std::log(last_ / init_);
     }
 
   private:
@@ -117,6 +155,11 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         {
             std::ofstream ene(output_basename_ + ".log");
             ene << "# step energy probe_shape\n";
+        }
+
+        if(schedule_->init_temperature() < 0.0)
+        {
+            this->warm_up();
         }
     }
     ~SimulatedAnnealingSimulator() override = default;
@@ -465,6 +508,12 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
     Real generate_01() noexcept
     {
         return std::generate_canonical<Real, std::numeric_limits<Real>::digits>(rng_);
+    }
+
+    void warm_up()
+    {
+        // determine temperature automatically
+        ;
     }
 
   private:
