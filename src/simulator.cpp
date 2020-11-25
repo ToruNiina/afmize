@@ -264,7 +264,7 @@ read_simulated_annealing_simulator(const toml::value& config, system<Real> init)
 }
 
 template<typename Real, typename Mask>
-std::unique_ptr<ScanningSimulator<Real, Mask>>
+std::unique_ptr<ScanningSimulator<Real>>
 read_scanning_simulator(const toml::value& config, system<Real> init)
 {
     const auto out = toml::find<std::string>(config, "simulator", "output");
@@ -276,7 +276,7 @@ read_scanning_simulator(const toml::value& config, system<Real> init)
 
     auto ref = read_reference_image(config, init.stage_info);
 
-    return std::make_unique<ScanningSimulator<Real, Mask>>(
+    return std::make_unique<ScanningSimulator<Real>>(
         num_div, num_save, dz,
         std::move(ref),
         std::move(init),

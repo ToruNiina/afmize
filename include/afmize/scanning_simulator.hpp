@@ -13,10 +13,11 @@
 namespace afmize
 {
 
-template<typename Real, typename Mask>
+template<typename Real>
 struct ScanningSimulator : public SimulatorBase<Real>
 {
     constexpr static Real pi = 3.14159265;
+    using mask_type = mask_by_rectangle<Real>;
 
     struct location
     {
@@ -30,7 +31,7 @@ struct ScanningSimulator : public SimulatorBase<Real>
         Real dz_,
         image<Real> ref, system<Real> sys,
         std::unique_ptr<ObserverBase<Real>>    obs,
-        std::unique_ptr<ScoreBase<Real, Mask>> score,
+        std::unique_ptr<ScoreBase<Real, mask_type>> score,
         std::string out)
         : step_(0), num_save_(num_save), next_output_(0.0), doutput_percent_(1.0),
           num_div_(num_div),
@@ -266,7 +267,7 @@ struct ScanningSimulator : public SimulatorBase<Real>
             loc.z_offset = z_ofs;
             auto img = obs_->observe(sys_);
 
-            const Mask mask(img);
+            const mask_type mask(img);
             const std::size_t x_rem = reference_.x_pixel() - mask.pixel_x();
             const std::size_t y_rem = reference_.y_pixel() - mask.pixel_y();
 
@@ -277,8 +278,8 @@ struct ScanningSimulator : public SimulatorBase<Real>
                 {
                     loc.x_offset = x_ofs;
 
-                    const Mask target_mask(sys_, x_ofs, mask.pixel_x(),
-                                                 y_ofs, mask.pixel_y());
+                    const mask_type target_mask(sys_, x_ofs, mask.pixel_x(),
+                                                      y_ofs, mask.pixel_y());
                     const auto penalty = this->score_->calc(sys_, img, mask, reference_, target_mask);
 
                     const auto found = std::lower_bound(high_score_.begin(), high_score_.end(),
@@ -314,7 +315,7 @@ struct ScanningSimulator : public SimulatorBase<Real>
         for(const auto& best : high_score_)
         {
             sys_ = init_;
-            const Mask mask(sys_);
+            const mask_type mask(sys_);
 
             const auto& loc = best.first;
             const auto& rot = loc.rot;
@@ -377,7 +378,7 @@ struct ScanningSimulator : public SimulatorBase<Real>
     system<Real>                             sys_;
     system<Real>                            init_;
     std::unique_ptr<ObserverBase<Real>>      obs_;
-    std::unique_ptr<ScoreBase<Real, Mask>> score_;
+    std::unique_ptr<ScoreBase<Real, mask_type>> score_;
     afmize::progress_bar<70>                 bar_;
     std::string                  output_basename_;
 };
