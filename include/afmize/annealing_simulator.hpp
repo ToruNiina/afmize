@@ -510,8 +510,86 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
 
     void warm_up()
     {
-        // determine temperature automatically
-        ;
+        constexpr std::size_t N = 1000;
+        std::vector<Real> energy_differences;
+        energy_differences.reserve(N);
+
+        const auto initial_configuration = sys_;
+
+        Real current_energy = this->current_energy_;
+        std::bernoulli_distribution half_half(0.5);
+
+        for(std::size_t i=0; i<N; ++i)
+        {
+            next_ = sys_;
+
+            const auto dx = nrm_(rng_) * sigma_dx_;
+            const auto dy = nrm_(rng_) * sigma_dy_;
+
+            translate(mave::vector<Real, 3>(dx, dy, 0.0), next_);
+
+            // rot around x
+            const auto rot_x = (this->generate_01() * 2.0 - 1.0) * max_drotx_;
+            const auto cos_x = std::cos(rot_x);
+            const auto sin_x = std::sin(rot_x);
+            mave::matrix<Real, 3, 3> mat_x;
+            mat_x.zero();
+            mat_x(0, 0) = 1.0;
+            mat_x(1, 1) =  cos_x;
+            mat_x(1, 2) = -sin_x;
+            mat_x(2, 1) =  sin_x;
+            mat_x(2, 2) =  cos_x;
+
+            // rot around y
+            const auto rot_y = (this->generate_01() * 2.0 - 1.0) * max_droty_;
+            const auto cos_y = std::cos(rot_y);
+            const auto sin_y = std::sin(rot_y);
+            mave::matrix<Real, 3, 3> mat_y;
+            mat_y.zero();
+            mat_y(0, 0) =  cos_y;
+            mat_y(0, 2) =  sin_y;
+            mat_y(1, 1) = 1.0;
+            mat_y(2, 0) = -sin_y;
+            mat_y(2, 2) =  cos_y;
+
+            // rot around z
+            const auto rot_z = (this->generate_01() * 2.0 - 1.0) * max_drotz_;
+            const auto cos_z = std::cos(rot_z);
+            const auto sin_z = std::sin(rot_z);
+            mave::matrix<Real, 3, 3> mat_z;
+            mat_z.zero();
+            mat_z(0, 0) =  cos_z;
+            mat_z(0, 1) = -sin_z;
+            mat_z(1, 0) =  sin_z;
+            mat_z(1, 1) =  cos_z;
+            mat_z(2, 2) = 1.0;
+
+            rotate(mat_z * mat_y * mat_x, next_);
+
+
+            const auto& next_img = obs_->observe(next_);
+            const auto energy = score_->calc(next_, next_img  , Mask(next_img),
+                                                    reference_, Mask(next_img));
+            const auto deltaE = energy - current_energy;
+
+            if(0.0 < deltaE)
+            {
+                // to make sure that
+                energy_differences.push_back(deltaE);
+            }
+
+            if(half_half(rng_))
+            {
+                sys_ = next_;
+                current_energy = energy;
+            }
+        }
+        this->sys_ = initial_configuration;
+
+        std::sort(energy_differences.begin(), energy_differences.end());
+        const auto initial_temperature = energy_differences.at(N/2) / std::log(2.0);
+        this->schedule_->set_init_temperature(initial_temperature);
+        return ;
     }
 
   private:
