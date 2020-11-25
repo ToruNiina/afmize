@@ -155,9 +155,6 @@ struct ScanningSimulator : public SimulatorBase<Real>
 
         // setup progress bar
         bar_.reset_total(axes_rot_.size());
-
-//         std::ofstream debug("debug.xyz");
-//         debug.close();
     }
     ~ScanningSimulator() override = default;
 
@@ -185,7 +182,6 @@ struct ScanningSimulator : public SimulatorBase<Real>
             this->output_status();
             return false;
         }
-//         std::ofstream debug("debug.xyz", std::ios::app);
 
         mave::vector<Real, 3> vtx1(0.0, 0.0, 1.0);
         mave::vector<Real, 3> vtx2(0.0, 0.0, 0.0);
@@ -237,10 +233,6 @@ struct ScanningSimulator : public SimulatorBase<Real>
             const auto v1 = mat * vtx1;
             const auto v2 = mat * vtx2;
             const auto v3 = mat * vtx3;
-//             debug << "3\n\n";
-//             debug << "H     " << v1[0] << " " << v1[1] << " " << v1[2] << '\n';
-//             debug << "C     " << v2[0] << " " << v2[1] << " " << v2[2] << '\n';
-//             debug << "H     " << v3[0] << " " << v3[1] << " " << v3[2] << '\n';
 
             this->scan_translation(location{mat, 0, 0});
         }
