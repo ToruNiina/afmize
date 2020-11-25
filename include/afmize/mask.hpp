@@ -79,6 +79,29 @@ struct mask_by_rectangle
         this->pixel_y_ = y_upper_ - y_lower_;
     }
 
+    mask_by_rectangle(const image<Real>& img) // nonzero
+    {
+        x_lower_ = std::numeric_limits<std::size_t>::max();
+        x_upper_ = 0;
+        y_lower_ = std::numeric_limits<std::size_t>::max();
+        y_upper_ = 0;
+        for(std::size_t j=0; j<img.y_pixel(); ++j)
+        {
+            for(std::size_t i=0; i<img.x_pixel(); ++i)
+            {
+                if(img.at(i, j) != 0.0)
+                {
+                    x_upper_ = std::max(x_upper_, i+1);
+                    y_upper_ = std::max(y_upper_, j+1);
+                    x_lower_ = std::min(x_lower_, i);
+                    y_lower_ = std::min(y_lower_, j);
+                }
+            }
+        }
+        pixel_x_ = x_upper_ - x_lower_;
+        pixel_y_ = y_upper_ - y_lower_;
+    }
+
     // XXX pixel at upper is not included, but lower is included.
     mask_by_rectangle(const system<Real>&,
                       const std::size_t x_lower, const std::size_t x_size,
@@ -104,7 +127,6 @@ struct mask_by_rectangle
             throw std::out_of_range("afmize::mask: condition y + y_lower (" +
                     std::to_string(y) + " + " + std::to_string(y_lower_) + ") <= y_upper (" +
                     std::to_string(y_upper_) + ") is not satisfied.");
-
         }
         return img(x + x_lower_, y + y_lower_);
     }

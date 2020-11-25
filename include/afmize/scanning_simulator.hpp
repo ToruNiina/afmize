@@ -257,18 +257,19 @@ struct ScanningSimulator : public SimulatorBase<Real>
 
     void scan_translation(location loc)
     {
-        const Mask mask(sys_);
-        auto img = obs_->observe(sys_);
-
-        const std::size_t x_rem = reference_.x_pixel() - mask.pixel_x();
-        const std::size_t y_rem = reference_.y_pixel() - mask.pixel_y();
-
-        const std::size_t z_len = std::ceil(
-                std::max(0.0, this->max_height_ - sys_.bounding_box.upper[2]) / this->dz_) + 1;
+        const std::size_t z_len = 1 + std::ceil(
+                std::max(0.0, this->max_height_ - sys_.bounding_box.upper[2]) /
+                this->dz_);
 
         for(std::size_t z_ofs=0; z_ofs < z_len; ++z_ofs)
         {
             loc.z_offset = z_ofs;
+            auto img = obs_->observe(sys_);
+
+            const Mask mask(img);
+            const std::size_t x_rem = reference_.x_pixel() - mask.pixel_x();
+            const std::size_t y_rem = reference_.y_pixel() - mask.pixel_y();
+
             for(std::size_t y_ofs=0; y_ofs < y_rem; ++y_ofs)
             {
                 loc.y_offset = y_ofs;
@@ -293,10 +294,9 @@ struct ScanningSimulator : public SimulatorBase<Real>
                     }
                 }
             }
-
-            for(auto& pxl : img)
+            for(auto& p : sys_.particles)
             {
-                pxl += this->dz_;
+                p.center[2] += this->dz_;
             }
         }
         return;
