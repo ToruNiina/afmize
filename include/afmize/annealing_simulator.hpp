@@ -197,8 +197,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
             afmize::write_tsv(output_basename_ + "_result", this->current_image());
 
             std::ofstream ene(output_basename_ + ".log", std::ios::app);
-            ene << this->step_
-                << " " << this->current_energy_;
+            ene << this->step_ << " " << this->current_energy_ << " ";
             obs_->print_probe(ene);
             ene << "\n";
             std::cerr << bar_.format(this->step_);
@@ -214,8 +213,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
             afmize::write_tsv(fname,           this->current_image());
 
             std::ofstream ene(output_basename_ + ".log", std::ios::app);
-            ene << this->step_
-                << " " << this->current_energy_;
+            ene << this->step_ << " " << this->current_energy_ << " ";
             obs_->print_probe(ene);
             ene << "\n";
 
