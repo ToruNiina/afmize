@@ -13,7 +13,7 @@ void apply_noise(image<Real>& img, RNG& rng, const Real sigma = 3.0 /*angstrom*/
     std::normal_distribution<Real> nrm(0.0, sigma);
     for(auto& pxl : img)
     {
-        pxl = std::max(stage_position, pxl + nrm(rng));
+        pxl = pxl + nrm(rng);
     }
     return ;
 }
