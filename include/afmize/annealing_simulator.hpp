@@ -407,7 +407,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         else
         {
             // if energy increases, go back to the original probe
-            obs_->update_probe(prev_state);
+            obs_->update_probe(probe_state);
         }
         return;
     }
