@@ -66,7 +66,12 @@ struct ExponentialSchedule final: public ScheduleBase<Real>
             const Real init, const Real last, const std::size_t total_step)
         : init_(init), last_(last), coef_(std::log(last / init)),
           total_step_(total_step)
-    {}
+    {
+        if(last_ <= 0.0)
+        {
+            last_ = 1e-12;
+        }
+    }
     ~ExponentialSchedule() override = default;
 
     Real temperature(const std::size_t tstep) const noexcept override
@@ -83,7 +88,7 @@ struct ExponentialSchedule final: public ScheduleBase<Real>
         this->init_ = init;
         if(this->init_ <= 0)
         {
-            this->init_ = 1e-7;
+            this->init_ = 1e-12;
         }
         coef_ = std::log(last_ / init_);
     }
@@ -92,7 +97,7 @@ struct ExponentialSchedule final: public ScheduleBase<Real>
         this->last_ = last;
         if(this->last_ <= 0)
         {
-            this->last_ = 1e-7;
+            this->last_ = 1e-12;
         }
         coef_ = std::log(last_ / init_);
     }
@@ -510,7 +515,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
 
     void warm_up()
     {
-        constexpr std::size_t N = 1000;
+        constexpr std::size_t N = 100;
         std::vector<Real> energy_differences;
         energy_differences.reserve(N);
 
@@ -519,8 +524,11 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         Real current_energy = this->current_energy_;
         std::bernoulli_distribution half_half(0.5);
 
+        std::cerr << "collecting warm up information ..." << std::endl;
+        afmize::progress_bar<70> bar(N);
         for(std::size_t i=0; i<N; ++i)
         {
+            std::cerr << bar.format(i);
             next_ = sys_;
 
             const auto dx = nrm_(rng_) * sigma_dx_;
