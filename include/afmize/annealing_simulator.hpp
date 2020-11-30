@@ -187,6 +187,9 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
 
     bool step() override
     {
+        const auto temperature = schedule_->temperature(step_);
+        const auto beta = 1.0 / temperature;
+
         if(this->step_ >= total_step_)
         {
             // --------------------------------------------------------------------
@@ -199,7 +202,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
             std::ofstream ene(output_basename_ + ".log", std::ios::app);
             ene << this->step_ << " " << this->current_energy_ << " ";
             obs_->print_probe(ene);
-            ene << "\n";
+            ene << " " << temperature << "\n";
             std::cerr << bar_.format(this->step_);
 
             return false;
@@ -215,13 +218,10 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
             std::ofstream ene(output_basename_ + ".log", std::ios::app);
             ene << this->step_ << " " << this->current_energy_ << " ";
             obs_->print_probe(ene);
-            ene << "\n";
+            ene << " " << temperature << "\n";
 
             std::cerr << bar_.format(this->step_);
         }
-
-        const auto temperature = schedule_->temperature(step_);
-        const auto beta = 1.0 / temperature;
 
         // translation
 
@@ -597,8 +597,16 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         this->sys_ = initial_configuration;
 
         std::sort(energy_differences.begin(), energy_differences.end());
-        const auto initial_temperature = energy_differences.at(energy_differences.size() / 2) / std::log(2.0);
-        this->schedule_->set_init_temperature(initial_temperature);
+        if(N / 2 < energy_differences.size())
+        {
+            const auto initial_temperature = energy_differences.at(energy_differences.size() - N / 2) / std::log(2.0);
+            this->schedule_->set_init_temperature(initial_temperature);
+        }
+        else
+        {
+            const auto initial_temperature = energy_differences.at(energy_differences.size() / 5) / std::log(2.0);
+            this->schedule_->set_init_temperature(initial_temperature);
+        }
         return ;
     }
 
