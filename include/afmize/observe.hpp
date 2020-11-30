@@ -223,7 +223,7 @@ struct RigidObserver: public ObserverBase<Real>
 
     void print_probe(std::ostream& os) const override
     {
-        os << probe.radius * 0.1 << "[nm] " << probe.angle * 180.0 / 3.1416 << "[rad]";
+        os << probe.radius * 0.1 << " [nm] " << probe.angle * 180.0 / 3.1416 << " [rad]";
     }
 
     std::map<std::string, Real> get_probe() const override
