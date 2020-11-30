@@ -20,14 +20,14 @@ struct ScheduleBase
 {
     virtual ~ScheduleBase() = default;
     virtual Real temperature(const std::size_t tstep) const noexcept = 0;
-    virtual Real init_temperature(const Real) const noexcept = 0;
-    virtual Real last_temperature(const Real) const noexcept = 0;
-    virtual Real set_init_temperature(const Real) = 0;
-    virtual Real set_last_temperature(const Real) = 0;
+    virtual Real init_temperature() const noexcept = 0;
+    virtual Real last_temperature() const noexcept = 0;
+    virtual void set_init_temperature(const Real) = 0;
+    virtual void set_last_temperature(const Real) = 0;
 };
 
 template<typename Real>
-struct LinearSchedule : public ScheduleBase<Real>
+struct LinearSchedule final: public ScheduleBase<Real>
 {
     LinearSchedule(
             const Real init, const Real last, const std::size_t total_step)
@@ -44,7 +44,7 @@ struct LinearSchedule : public ScheduleBase<Real>
     Real init_temperature() const noexcept override {return init_;}
     Real last_temperature() const noexcept override {return last_;}
 
-    void set_last_temperature(const Real init) override
+    void set_init_temperature(const Real init) override
     {
         this->init_ = init;
     }
@@ -60,7 +60,7 @@ struct LinearSchedule : public ScheduleBase<Real>
 };
 
 template<typename Real>
-struct ExponentialSchedule: public ScheduleBase<Real>
+struct ExponentialSchedule final: public ScheduleBase<Real>
 {
     ExponentialSchedule(
             const Real init, const Real last, const std::size_t total_step)
@@ -78,7 +78,7 @@ struct ExponentialSchedule: public ScheduleBase<Real>
     Real init_temperature() const noexcept override {return init_;}
     Real last_temperature() const noexcept override {return last_;}
 
-    void set_last_temperature(const Real init) override
+    void set_init_temperature(const Real init) override
     {
         this->init_ = init;
         if(this->init_ <= 0)
@@ -314,7 +314,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
     {
         next_ = sys_;
 
-        this->translate(dt, next_);
+        this->translate(dr, next_);
 
         // avoid particle from escaping observation stage.
         // To fix the number of pixels when calculating score, it does not
@@ -412,7 +412,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         return std::generate_canonical<Real, std::numeric_limits<Real>::digits>(rng_);
     }
 
-    void translate(const mave::vector<Real, 3>& dr, system<Real>& target)
+    void translate(mave::vector<Real, 3> dr, system<Real>& target)
     {
         // translation does not change the shape of bounding box.
         target.bounding_box.upper += dr;
@@ -427,7 +427,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         }
 
         // apply the movement
-        for(auto& p : this->target.particles)
+        for(auto& p : target.particles)
         {
             p.center += dr;
         }
@@ -443,7 +443,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         // 3. move back to the original center
 
         mave::vector<Real, 3> com(0.0, 0.0, 0.0);
-        for(const auto& p : this->target.particles)
+        for(const auto& p : target.particles)
         {
             com += p.center;
         }
@@ -483,7 +483,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         translation2(2, 3) = com[2];
 
         const mave::matrix<Real, 4, 4> matrix = translation2 * rotation * translation1;
-        for(auto& p : this->target.particles)
+        for(auto& p : target.particles)
         {
             mave::vector<Real, 4> r(p.center[0], p.center[1], p.center[2], 1.0);
             r = matrix * r;
@@ -496,7 +496,7 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
         if(target.bounding_box.lower[2] < 0.0)
         {
             // align the bottom to the xy plane (z=0.0)
-            for(auto& p : this->target.particles)
+            for(auto& p : target.particles)
             {
                 p.center[2] -= target.bounding_box.lower[2];
             }
