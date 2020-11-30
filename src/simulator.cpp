@@ -252,13 +252,13 @@ read_simulated_annealing_simulator(const toml::value& config, system<Real> init)
     {
         dprobe["radius"] = afmize::read_as_angstrom<Real>(toml::find(sim, "dprobe", "max_dradius"));
     }
-    if(sim.contains("max_dangle"))
+    if(sim.at("dprobe").contains("max_dangle"))
     {
-        dprobe["angle"]  = toml::find<Real>(sim, "dprobe", "max_dangle") * deg_to_rad;
+        dprobe["angle"] = toml::find<Real>(sim, "dprobe", "max_dangle") * deg_to_rad;
     }
-    if(sim.contains("max_dsigma"))
+    if(sim.at("dprobe").contains("max_dsigma"))
     {
-        dprobe["sigma"]  = afmize::read_as_angstrom<Real>(toml::find(sim, "dprobe", "max_dsigma"));
+        dprobe["sigma"] = afmize::read_as_angstrom<Real>(toml::find(sim, "dprobe", "max_dsigma"));
     }
 
     auto ref = read_reference_image(config, init.stage_info);
