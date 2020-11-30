@@ -137,7 +137,12 @@ read_temperature_schedule(const toml::value& config)
     if(method == "linear")
     {
         const auto total_t = toml::find<std::size_t>(sim, "steps");
-        const auto initial = toml::find<Real>(sim, "schedule", "initial");
+        const auto init_v  = toml::find(sim, "schedule", "initial");
+        Real initial = -1.0;
+        if(init_v.is_floating())
+        {
+            initial = init_v.as_floating();
+        }
         const auto final   = toml::find<Real>(sim, "schedule", "final");
 
         return std::make_unique<LinearSchedule<Real>>(initial, final, total_t);
@@ -145,7 +150,12 @@ read_temperature_schedule(const toml::value& config)
     else if(method == "exponential")
     {
         const auto total_t = toml::find<std::size_t>(sim, "steps");
-        const auto initial = toml::find<Real>(sim, "schedule", "initial");
+        const auto init_v  = toml::find(sim, "schedule", "initial");
+        Real initial = -1.0;
+        if(init_v.is_floating())
+        {
+            initial  = init_v.as_floating();
+        }
         const auto final   = toml::find<Real>(sim, "schedule", "final");
 
         return std::make_unique<ExponentialSchedule<Real>>(initial, final, total_t);
@@ -377,7 +387,9 @@ int main(int argc, char** argv)
         }
     }
 
+    std::cerr << "reading system..." << std::endl;
     afmize::system<Real> sys = afmize::read_system<Real>(config);
+
     // align the bottom to z == 0
     if(sys.bounding_box.lower[2] != 0)
     {
@@ -389,8 +401,13 @@ int main(int argc, char** argv)
         sys.bounding_box.lower -= offset;
         sys.bounding_box.upper -= offset;
     }
+    std::cerr << "done." << std::endl;
+    std::cerr << "reading simulator ..." << std::endl;
 
     auto sim = afmize::read_simulator(config, std::move(sys));
+
+    std::cerr << "done." << std::endl;
+
     sim->run();
 
     return 0;
