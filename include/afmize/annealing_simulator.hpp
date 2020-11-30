@@ -582,20 +582,24 @@ struct SimulatedAnnealingSimulator : public SimulatorBase<Real>
 
             if(0.0 < deltaE)
             {
-                // to make sure that
                 energy_differences.push_back(deltaE);
             }
 
-            if(half_half(rng_))
+            if(50 <= N && energy_differences.size() <= 10)
             {
-                sys_ = next_;
-                current_energy = energy;
+                if(half_half(rng_))
+                {
+                    sys_ = next_;
+                    current_energy = energy;
+                }
             }
         }
+        std::cerr << bar.format(N) << std::endl;
+
         this->sys_ = initial_configuration;
 
         std::sort(energy_differences.begin(), energy_differences.end());
-        const auto initial_temperature = energy_differences.at(N/2) / std::log(2.0);
+        const auto initial_temperature = energy_differences.at(energy_differences.size() / 2) / std::log(2.0);
         this->schedule_->set_init_temperature(initial_temperature);
         return ;
     }
