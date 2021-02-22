@@ -1,0 +1,38 @@
+# reference image info
+[image]
+pixels.x = 40
+pixels.y = 40
+reference = "actin_filament_2nmpx.tsv"
+lower.x = "0.0nm" # default
+lower.y = "0.0nm" # default
+
+# pseudo AFM image generation procedure
+[stage]
+pixels.x     = 40 # should be the same as the reference image ...
+pixels.y     = 40
+resolution.x = "2.0nm" # ditto
+resolution.y = "2.0nm"
+# resolution.z = "0.64angstrom" # if this is set, heights in the pseudo AFM image are discritized.
+
+# probe shape to be used while pseudo-AFM image generation
+[probe]
+radius = "2.0nm"
+angle  = 20.0
+
+# input structure
+[initial]
+input = "6BNO_A15.pdb"
+
+# score function
+[score]
+method     = "CosineSimilarity"
+k          = 1.0
+mask       = "none"
+use_zero_pixel_in_model = true
+
+[simulator]
+output       = "actin_filament_fitting_2.0nm_20.0deg_x36_CosineSimilarity_2nmpx_A15"
+method       = "Scanning"
+num_division = 36  # delta theta = 360 / 36 = 10 degree
+save         = 100 # top 100 structures will be written
+dz           = "0.64angstrom" # z-direction search
