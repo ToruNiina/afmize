@@ -199,10 +199,18 @@ int main(int argc, char** argv)
 
     // stage information ...
     const toml::value nan_v(std::numeric_limits<Real>::quiet_NaN());
-    const auto& stage_tab  = toml::find_or(config, "stage", toml::value{});
-    const bool stage_align = toml::find_or<bool>(stage_tab, "align", false);
-    const Real stage_position = afmize::read_as_angstrom<Real>(
-        toml::find_or(stage_tab, "position", nan_v));
+    const toml::value stage_tab = toml::find_or<toml::value>(config, "stage", toml::value(toml::table{}));
+    const bool stage_align      = toml::find_or<bool>(stage_tab, "align", false);
+    const Real stage_position   = [&]() -> Real {
+        if(stage_tab.contains("position"))
+        {
+            return afmize::read_as_angstrom<Real>(toml::find(stage_tab, "position"));
+        }
+        else
+        {
+            return std::numeric_limits<Real>::quiet_NaN();
+        }
+    }();
 
     if(stage_align && std::isnan(stage_position))
     {
