@@ -5,7 +5,20 @@ This example file includes the following.
 - input files to generate a pseudo-AFM image from a pdb file
 - input files to fit molecular structure into a pseudo-AFM image
 
-This example considers you have already built the afmize.
+## Building
+
+To build the software, run the following commands.
+
+```console
+$ git clone https://github.com/ToruNiina/afmize.git
+$ cd afmize
+$ git submodule update --init
+$ mkdir build
+$ cd build
+$ cmake ..
+$ make
+```
+
 Please make sure that you have `afmize` and `simulator` in the `afmize/bin/` directory.
 
 ## pseudo-AFM image generation procedure
