@@ -186,6 +186,6 @@ you can e-mail to [me](https://github.com/ToruNiina).
 
 This product is licensed under the terms of the [MIT License](LICENSE).
 
-- Copyright (c) 2018-2020 Toru Niina
+- Copyright (c) 2018-2021 Toru Niina
 
 All rights reserved.
