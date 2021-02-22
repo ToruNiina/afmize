@@ -16,17 +16,19 @@ No command-line option is available.
 $ afmize example.toml
 ```
 
+See also: [`example/actin/README.md`](example/actin)
+
 ## Configuration
 
 It uses [toml format](https://github.com/toml-lang/toml) as a config file format.
-For more information about the format, see [the spec of toml-v0.5.0](https://github.com/toml-lang/toml/blob/master/versions/en/toml-v0.5.0.md).
+For more information about the format, see [the spec of toml-v1.0.0](https://toml.io/en/v1.0.0).
 
 ### Example file
 
 ```toml
 file.input           = "example.pdb"
 file.output.basename = "output"
-file.output.formats  = ["csv", "json", "ppm", "svg"]
+file.output.formats  = ["tsv", "json", "ppm", "svg"]
 probe.size           = {radius = "1.0nm", angle = 10.0}
 resolution.x         = "1.0nm"
 resolution.y         = "1.0nm"
@@ -34,7 +36,7 @@ resolution.z         = "0.64angstrom"
 range.x              = ["0.0nm", "100.0nm"]
 range.y              = ["0.0nm", "100.0nm"]
 scale_bar.length     = "5.0nm"
-stage.align          = true
+noise                = "0.3nm"
 ```
 
 ### Reference
@@ -167,7 +169,8 @@ After this, you will find the executable at `bin/` directory.
 
 Please cite the following.
 
-- [Toru Niina, Sotaro Fuchigami, & Shoji Takada (2020, January 7). Flexible Fitting of Biomolecular Structures to Atomic Force Microscopy Images via Biased Molecular Simulations. JCTC. doi:10.1021/acs.jctc.9b00991](https://doi.org/10.1021/acs.jctc.9b00991)
+- [Toru Niina, Yasuhiro Matsunaga, & Shoji Takada (2021). Rigid-Body Fitting to Atomic Force Microscopy Images for Inferring Probe Shape and Biomolecular Structure. bioRxiv. doi:10.1101/2021.02.21.432132](https://www.biorxiv.org/content/10.1101/2021.02.21.432132v1)
+- [Toru Niina, Sotaro Fuchigami, & Shoji Takada (2020). Flexible Fitting of Biomolecular Structures to Atomic Force Microscopy Images via Biased Molecular Simulations. JCTC. doi:10.1021/acs.jctc.9b00991](https://doi.org/10.1021/acs.jctc.9b00991)
 - [Toru Niina, & Suguru Kato. (2019, August 7). ToruNiina/afmize: version 1.1.0 (Version v1.1.0). Zenodo. doi:10.5281/zenodo.2556444](https://doi.org/10.5281/zenodo.2556444)
 
 ## Contact
