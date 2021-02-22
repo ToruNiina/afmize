@@ -214,8 +214,16 @@ int main(int argc, char** argv)
         return EXIT_FAILURE;
     }
 
-    const auto noise_sigma = afmize::read_as_angstrom<Real>(
-            toml::find_or(config, "noise", toml::value{0.0}));
+    const Real noise_sigma = [&]() -> Real {
+        if(config.contains("noise"))
+        {
+            return afmize::read_as_angstrom<Real>(toml::find(config, "noise"));
+        }
+        else
+        {
+            return 0.0;
+        }
+    }();
     std::random_device dev;
     std::mt19937 rng(dev());
 
