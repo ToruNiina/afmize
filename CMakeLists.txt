@@ -18,7 +18,7 @@ else()
     else()
         message(STATUS "Boost library not found. Donwloading...")
 
-        file(DOWNLOAD https://boostorg.jfrog.io/native/main/release/1.77.0/source/boost_1_77_0.tar.gz
+        file(DOWNLOAD https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/boost_1_77_0.tar.gz
             ${PROJECT_SOURCE_DIR}/extlib/boost_1_77_0.tar.gz
             EXPECTED_HASH SHA256=5347464af5b14ac54bb945dc68f1dd7c56f0dad7262816b956138fc53bcc0131
             STATUS AFMIZE_DOWNLOAD_BOOST_STATUS)
