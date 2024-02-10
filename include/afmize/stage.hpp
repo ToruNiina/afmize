@@ -4,6 +4,7 @@
 #include "image.hpp"
 #include <vector>
 #include <cassert>
+#include <cstdint>
 
 namespace afmize
 {

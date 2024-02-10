@@ -5,6 +5,7 @@
 #include <vector>
 #include <cassert>
 #include <iostream>
+#include <cstdint>
 
 namespace afmize
 {
