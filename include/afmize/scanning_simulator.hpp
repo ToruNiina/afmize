@@ -1,5 +1,6 @@
 #ifndef AFMIZE_SCANNING_SIMULATOR_HPP
 #define AFMIZE_SCANNING_SIMULATOR_HPP
+
 #include "simulator_base.hpp"
 #include "progress_bar.hpp"
 #include "observe.hpp"
@@ -7,8 +8,12 @@
 #include "system.hpp"
 #include "stage.hpp"
 #include "score.hpp"
+#include "output_utility.hpp"
+
 #include <random>
 #include <iostream>
+#include <iomanip>
+#include <fstream>
 
 namespace afmize
 {
