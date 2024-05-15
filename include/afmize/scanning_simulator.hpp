@@ -315,7 +315,7 @@ struct ScanningSimulator : public SimulatorBase<Real>
         std::cerr << "\nwriting best " << high_score_.size() << " conformations ... ";
         std::ofstream trj(output_basename_ + ".xyz");
         std::ofstream ene(output_basename_ + ".log");
-        std::ofstream rot(output_basename_ + "_rot_trans.dat");
+        std::ofstream rtr(output_basename_ + "_rot_trans.dat");
         ene << "# idx energy\n";
 
         const auto width = std::to_string(high_score_.size()).size();
@@ -363,10 +363,10 @@ struct ScanningSimulator : public SimulatorBase<Real>
 
             ene << idx++ << ' ' << best.second << '\n';
 
-            rot << loc.rot(0,0) << ' ' << loc.rot(0,1) << ' ' << loc.rot(0,2) << ' ';
-            rot << loc.rot(1,0) << ' ' << loc.rot(1,1) << ' ' << loc.rot(1,2) << ' ';
-            rot << loc.rot(2,0) << ' ' << loc.rot(2,1) << ' ' << loc.rot(2,2) << ' ';
-            rot << loc.trans(0) << ' ' << loc.trans(1) << ' ' << loc.trans(2) << '\n';
+            rtr << loc.rot(0,0) << ' ' << loc.rot(0,1) << ' ' << loc.rot(0,2) << ' ';
+            rtr << loc.rot(1,0) << ' ' << loc.rot(1,1) << ' ' << loc.rot(1,2) << ' ';
+            rtr << loc.rot(2,0) << ' ' << loc.rot(2,1) << ' ' << loc.rot(2,2) << ' ';
+            rtr << loc.trans[0] << ' ' << loc.trans[1] << ' ' << loc.trans[2] << '\n';
         }
         std::cerr << "done.\n";
     }
